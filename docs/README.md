@@ -19,15 +19,36 @@ Rebyt turns user intent into verifiable on-chain settlement through four layers:
 - DeliveryValidator.py (GenLayer Python SDK, Bradbury)
 - rebyt-relayer.mjs (Node.js bridge)
 - Demo frontend (React, one page)
+- Circom 2.2.3 + snarkjs (ZK circuit)
+- Groth16 proof system (intent hash verification)
 
-## Contract Addresses
-- RebytEscrow.sol: [fill after deploy]
-- DeliveryValidator.py: [fill after deploy]
+## Contract Addresses (BSC Testnet, chain 97)
+- RebytEscrow.sol (ZK enabled): `0x5191Bca416e2De8dD7915bdD55bf625143ABB98C`
+- Groth16Verifier: `0x5cBC63B27AF1427096C644DdC66B56cf01006A1e`
+- DeliveryValidator.py (GenLayer Bradbury): `0xc84ef0aEC4A8b4e5241231296C4a201cb56380C6`
+
+## ZK Proof System
+
+The Solver generates a zero-knowledge proof that the intent data matches the hash before the escrow accepts funds.
+
+- **Circuit**: `Poseidon(recipient, amount, nonce) == intentHash`
+- **Proof system**: Groth16 / BN128
+- **Verified onchain**: `RebytEscrow.fundWithZK()` calls `Groth16Verifier.verifyProof()`
+
+Demo tx (`ZKProofVerified` event):
+https://testnet.bscscan.com/tx/0x1bce644f6ac296bbd5a75ffa0b783987d8648355bb4dd912d6cbe8970995ab3e
+
+## Bradbury Bug Report
+
+During integration with GenLayer Bradbury, we documented reproducible issues with `gen_call` reliability and testnet RPC behavior. Full report: [docs/BRADBURY-BUG-REPORT.md](BRADBURY-BUG-REPORT.md)
+
+This is submitted as a contribution to the Bradbury Special Track.
 
 ## Demo Video
 [fill Sunday morning]
 
 ## Tracks
-- GenLayer track: Intelligent Contract with Optimistic Democracy + Equivalence Principle deployed on Bradbury
-- PL Genesis: best overall project
-- BNB Chain: deployed on BSC Testnet, EIP-7702 roadmap
+- **GenLayer**: Intelligent Contract with Optimistic Democracy + Equivalence Principle deployed on Bradbury
+- **Bradbury Special Track**: Bug report with 6 reproducible issues (see docs/BRADBURY-BUG-REPORT.md)
+- **PL Genesis**: best overall project
+- **BNB Chain**: deployed on BSC Testnet, EIP-7702 roadmap
