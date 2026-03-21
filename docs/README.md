@@ -25,6 +25,14 @@ An optional ZK path verifies that the intent data matches the committed hash bef
 Intent → Escrow → Validation → Settlement  
     ↘ ZK verification
 
+Architecture logo:
+
+![Rebyt Logo](assets/rebyt_logo_isometric_solo.svg)
+
+Architecture flow:
+
+![Rebyt Full Architecture Flow](assets/rebyt_full_architecture_sequence.svg)
+
 ---
 
 ## How it works

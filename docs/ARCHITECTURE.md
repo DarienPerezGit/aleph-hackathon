@@ -2,6 +2,12 @@
 
 Intent-based payment infrastructure where users sign what they want, AI validators evaluate whether delivery conditions were met, and escrow settles automatically.
 
+## Visuals
+
+![Rebyt Logo](assets/rebyt_logo_isometric_solo.svg)
+
+![Rebyt Full Architecture Flow](assets/rebyt_full_architecture_sequence.svg)
+
 ## Four Layers
 
 ### 1) Intent Layer

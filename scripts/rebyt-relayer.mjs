@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { createAccount as createGenLayerAccount, createClient as createGenLayerClient } from 'genlayer-js';
-import { testnetBradbury } from 'genlayer-js/chains';
+import { studionet } from 'genlayer-js/chains';
 import { createPublicClient, createWalletClient, http, parseAbi } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { bscTestnet } from 'viem/chains';
@@ -25,8 +25,6 @@ if (!privateKey) {
 const ESCROW_CONTRACT_ADDRESS = process.env.ESCROW_CONTRACT_ADDRESS;
 const GENLAYER_CONTRACT_ADDRESS = process.env.GENLAYER_CONTRACT_ADDRESS;
 const BSC_TESTNET_RPC = process.env.BSC_TESTNET_RPC;
-const GENLAYER_RPC = process.env.GENLAYER_RPC || 'https://zksync-os-testnet-genlayer.zksync.dev';
-const GENLAYER_CHAIN_ID = Number(process.env.GENLAYER_CHAIN_ID || 4221);
 const DEFAULT_EVIDENCE_URL = process.env.GENLAYER_EVIDENCE_URL ?? '';
 const MANUAL_VALIDATION_RESULT = process.env.MANUAL_VALIDATION_RESULT ?? '';
 const MANUAL_VALIDATION_TX_HASH = process.env.MANUAL_VALIDATION_TX_HASH ?? '';
@@ -52,10 +50,7 @@ const publicClient = createPublicClient({
 });
 
 const genlayerClient = createGenLayerClient({
-  chain: testnetBradbury,
-  rpcUrl: GENLAYER_RPC,
-  endpoint: GENLAYER_RPC,
-  chainId: GENLAYER_CHAIN_ID,
+  chain: studionet,
   account: createGenLayerAccount(privateKey)
 });
 
