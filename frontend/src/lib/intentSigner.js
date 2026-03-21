@@ -34,3 +34,21 @@ export async function signPaymentIntent(walletClient, account, intent) {
 
   return { signature, intentHash };
 }
+
+export async function signPaymentIntentWithSessionAccount(sessionAccount, intent) {
+  const signature = await sessionAccount.signTypedData({
+    domain,
+    types,
+    primaryType: 'PaymentIntent',
+    message: intent
+  });
+
+  const intentHash = hashTypedData({
+    domain,
+    types,
+    primaryType: 'PaymentIntent',
+    message: intent
+  });
+
+  return { signature, intentHash };
+}

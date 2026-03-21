@@ -3,6 +3,7 @@ import express from 'express';
 import { createPublicClient, createWalletClient, http, parseAbi } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { bscTestnet } from 'viem/chains';
+import { settleIntent } from './rebyt-relayer.mjs';
 
 const PORT = Number(process.env.SOLVER_PORT || 3001);
 const ESCROW_CONTRACT_ADDRESS = process.env.ESCROW_CONTRACT_ADDRESS || '0xc065d530eAb19955EedC11BD51920625100B3a6A';
@@ -14,8 +15,36 @@ if (!privateKey) {
 }
 
 const escrowAbi = parseAbi([
-  'function fund(bytes32 intentHash, uint256 amount) external payable'
+  'function fund(bytes32 intentHash, uint256 amount) external payable',
+  'function getIntent(bytes32 intentHash) external view returns ((address recipient,uint256 amount,uint8 state,uint256 fundedAt,uint256 settledAt))'
 ]);
+
+const intentStateLabels = ['PENDING', 'FUNDED', 'VALIDATING', 'RELEASED', 'REFUNDED'];
+const intentRuntime = new Map();
+
+function normalizeIntentHash(intentHash) {
+  if (!intentHash || typeof intentHash !== 'string') return '';
+  const normalized = intentHash.startsWith('0x') ? intentHash : `0x${intentHash}`;
+  return /^0x[a-fA-F0-9]{64}$/.test(normalized) ? normalized : '';
+}
+
+function mapOnchainStatus(stateCode) {
+  return intentStateLabels[stateCode] || 'UNKNOWN';
+}
+
+async function readOnchainIntentStatus(intentHash) {
+  const data = await publicClient.readContract({
+    address: ESCROW_CONTRACT_ADDRESS,
+    abi: escrowAbi,
+    functionName: 'getIntent',
+    args: [intentHash]
+  });
+
+  const stateCode = Number(data.state ?? data[2]);
+  const status = mapOnchainStatus(stateCode);
+
+  return { stateCode, status };
+}
 
 const account = privateKeyToAccount(privateKey);
 const walletClient = createWalletClient({
@@ -40,23 +69,30 @@ app.options('/intent', (_, res) => res.sendStatus(204));
 
 app.post('/intent', async (req, res) => {
   try {
-    const { intentHash, intent } = req.body || {};
+    const { intentHash, intent, signer, setupMode } = req.body || {};
     const amountWei = intent?.amountWei;
+    const deliveryCondition = intent?.condition || '';
+    const evidenceUrl = intent?.evidenceUrl || process.env.GENLAYER_EVIDENCE_URL || 'https://example.com';
 
     if (!intentHash || typeof intentHash !== 'string') {
       return res.status(400).json({ error: 'intentHash is required' });
     }
-
     if (!amountWei) {
       return res.status(400).json({ error: 'intent.amountWei is required' });
     }
 
-    const normalizedIntentHash = intentHash.startsWith('0x') ? intentHash : `0x${intentHash}`;
-    if (!/^0x[a-fA-F0-9]{64}$/.test(normalizedIntentHash)) {
+    const normalizedIntentHash = normalizeIntentHash(intentHash);
+    if (!normalizedIntentHash) {
       return res.status(400).json({ error: 'intentHash must be bytes32 hex string' });
     }
 
     const parsedAmount = BigInt(amountWei);
+    console.log('[solver] funding intent', {
+      intentHash: normalizedIntentHash,
+      signer,
+      setupMode
+    });
+
     const txHash = await walletClient.writeContract({
       address: ESCROW_CONTRACT_ADDRESS,
       abi: escrowAbi,
@@ -67,10 +103,84 @@ app.post('/intent', async (req, res) => {
 
     const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
 
+    intentRuntime.set(normalizedIntentHash, {
+      status: 'FUNDED',
+      escrowTxHash: txHash,
+      settlementTxHash: '',
+      updatedAt: Date.now(),
+      error: ''
+    });
+
+    void (async () => {
+      try {
+        intentRuntime.set(normalizedIntentHash, {
+          ...intentRuntime.get(normalizedIntentHash),
+          status: 'VALIDATING',
+          updatedAt: Date.now()
+        });
+
+        const settlement = await settleIntent(normalizedIntentHash, {
+          condition: deliveryCondition,
+          evidenceUrl
+        });
+        intentRuntime.set(normalizedIntentHash, {
+          ...intentRuntime.get(normalizedIntentHash),
+          status: settlement.action === 'release' ? 'RELEASED' : 'REFUNDED',
+          settlementTxHash: settlement.txHash || '',
+          updatedAt: Date.now(),
+          error: ''
+        });
+      } catch (error) {
+        intentRuntime.set(normalizedIntentHash, {
+          ...intentRuntime.get(normalizedIntentHash),
+          status: 'ERROR',
+          updatedAt: Date.now(),
+          error: error.message
+        });
+      }
+    })();
+
     return res.json({
       txHash,
       status: receipt.status,
       bscScanUrl: `https://testnet.bscscan.com/tx/${txHash}`
+    });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/intent/:hash/status', async (req, res) => {
+  try {
+    const normalizedIntentHash = normalizeIntentHash(req.params.hash);
+    if (!normalizedIntentHash) {
+      return res.status(400).json({ error: 'intentHash must be bytes32 hex string' });
+    }
+
+    const runtime = intentRuntime.get(normalizedIntentHash) || {
+      status: 'UNKNOWN',
+      escrowTxHash: '',
+      settlementTxHash: '',
+      error: ''
+    };
+
+    const onchain = await readOnchainIntentStatus(normalizedIntentHash);
+    const effectiveStatus = runtime.status === 'VALIDATING' ? 'VALIDATING' : onchain.status;
+
+    return res.json({
+      intentHash: normalizedIntentHash,
+      status: effectiveStatus,
+      stateCode: onchain.stateCode,
+      escrowTxHash: runtime.escrowTxHash,
+      settlementTxHash: runtime.settlementTxHash,
+      error: runtime.error,
+      links: {
+        escrow: runtime.escrowTxHash ? `https://testnet.bscscan.com/tx/${runtime.escrowTxHash}` : '',
+        settlement: runtime.settlementTxHash ? `https://testnet.bscscan.com/tx/${runtime.settlementTxHash}` : '',
+        genlayer: process.env.GENLAYER_CONTRACT_ADDRESS
+          ? `https://studio.genlayer.com/contract/${process.env.GENLAYER_CONTRACT_ADDRESS}`
+          : ''
+      }
     });
   } catch (error) {
     return res.status(500).json({ error: error.message });

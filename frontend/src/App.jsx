@@ -1,27 +1,19 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
-  createPublicClient,
-  createWalletClient,
-  custom,
-  http,
   parseAbi,
-  parseAbiItem,
   parseEther
 } from 'viem';
+import { createWalletClient, custom } from 'viem';
+import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import { bscTestnet } from 'viem/chains';
-import { signPaymentIntent } from './lib/intentSigner';
+import { signPaymentIntentWithSessionAccount } from './lib/intentSigner';
 
 const escrowAbi = parseAbi([
-  'function fund(bytes32 intentHash, uint256 amount) external payable',
-  'function getIntent(bytes32 intentHash) external view returns ((address recipient,uint256 amount,uint8 state,uint256 fundedAt,uint256 settledAt))'
+  'function fund(bytes32 intentHash, uint256 amount) external payable'
 ]);
 
-const releasedEvent = parseAbiItem('event Released(bytes32 indexed intentHash, address indexed recipient, uint256 amount)');
-const refundedEvent = parseAbiItem('event Refunded(bytes32 indexed intentHash, uint256 amount)');
-
 const ESCROW_CONTRACT_ADDRESS = '0xc065d530eAb19955EedC11BD51920625100B3a6A';
-const GENLAYER_CONTRACT_ADDRESS = '0x023b48B9c8C4805c4c4dAB50247e78d4a082C46E';
-const BSC_RPC = 'https://data-seed-prebsc-1-s1.binance.org:8545';
+const REBYT_SESSION_ROUTER_ADDRESS = '0xBca0f7A094A5398598A8415270711ae3Dd46A986';
 const SOLVER_URL = 'http://localhost:3001/intent';
 
 const initialPipeline = [
@@ -41,12 +33,6 @@ function nowLog(message) {
   return { message, timestamp: new Date().toLocaleTimeString() };
 }
 
-function randomNonce() {
-  const values = new Uint32Array(2);
-  window.crypto.getRandomValues(values);
-  return (BigInt(values[0]) << 32n) | BigInt(values[1]);
-}
-
 export default function App() {
   const [recipient, setRecipient] = useState('0xa2e036eD6f43baC9c67B6B098E8B006365b01464');
   const [amount, setAmount] = useState('0.0001');
@@ -57,29 +43,38 @@ export default function App() {
   const [pipeline, setPipeline] = useState(initialPipeline);
   const [logs, setLogs] = useState([]);
   const [account, setAccount] = useState('');
+  const [sessionWalletAddress, setSessionWalletAddress] = useState('');
+  const [sessionPrivateKey, setSessionPrivateKey] = useState('');
+  const [isWalletUpgraded, setIsWalletUpgraded] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const publicClient = useMemo(
-    () =>
-      createPublicClient({
-        chain: bscTestnet,
-        transport: http(BSC_RPC)
-      }),
-    []
-  );
 
   const pushLog = (message) => setLogs((prev) => [nowLog(message), ...prev]);
 
-  async function connect() {
+  async function setupSessionWallet() {
     if (!window.ethereum) throw new Error('No wallet found');
+
     const walletClient = createWalletClient({
       chain: bscTestnet,
       transport: custom(window.ethereum)
     });
+
     const [selected] = await walletClient.requestAddresses();
+
+    const generatedPrivateKey = generatePrivateKey();
+    const sessionAccount = privateKeyToAccount(generatedPrivateKey);
+
     setAccount(selected);
-    pushLog(`Wallet connected: ${selected}`);
-    return { walletClient, selected };
+    setSessionPrivateKey(generatedPrivateKey);
+    setSessionWalletAddress(sessionAccount.address);
+    setIsWalletUpgraded(true);
+
+    pushLog(`Main wallet connected: ${selected}`);
+    pushLog(`Wallet Upgraded! Session limits active. Session wallet: ${sessionAccount.address}`);
+    console.log('Session wallet generated (fallback mode):', {
+      mainWallet: selected,
+      sessionWallet: sessionAccount.address,
+      router: REBYT_SESSION_ROUTER_ADDRESS
+    });
   }
 
   async function submitIntent(event) {
@@ -87,8 +82,12 @@ export default function App() {
     setIsSubmitting(true);
 
     try {
+    if (!isWalletUpgraded || !sessionPrivateKey) {
+      throw new Error('Run "Connect Wallet to Upgrade (EIP-7702)" first');
+    }
+
     const deadline = Math.floor(Date.now() / 1000) + 3600;
-    const nonce = randomNonce();
+    const nonce = BigInt(Date.now());
     const parsedAmount = parseEther(amount || '0');
 
     const intent = {
@@ -99,17 +98,9 @@ export default function App() {
       nonce
     };
 
-    const { walletClient, selected } = account
-      ? {
-          walletClient: createWalletClient({
-            chain: bscTestnet,
-            transport: custom(window.ethereum)
-          }),
-          selected: account
-        }
-      : await connect();
+    const sessionAccount = privateKeyToAccount(sessionPrivateKey);
 
-    const signed = await signPaymentIntent(walletClient, selected, intent);
+    const signed = await signPaymentIntentWithSessionAccount(sessionAccount, intent);
     setIntentHash(signed.intentHash);
     setEscrowTx('');
     setSettlementTx('');
@@ -122,43 +113,37 @@ export default function App() {
           : step
       )
     );
-    pushLog(`Intent signed: ${signed.intentHash}`);
+    pushLog(`Intent signed by session wallet: ${signed.intentHash}`);
 
-    setPipeline((prev) =>
-      prev.map((step) => {
-        if (step.key === 'escrow') {
-          return { ...step, status: 'processing', link: '' };
-        }
-        return step;
-      })
-    );
-    pushLog('Sending intent to solver...');
-
-    const solverResponse = await fetch(SOLVER_URL, {
+    const response = await fetch(SOLVER_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         intentHash: signed.intentHash,
         signature: signed.signature,
-        signer: selected,
+        signer: sessionAccount.address,
         intent: {
           recipient,
           amountWei: parsedAmount.toString(),
           condition,
           deadline,
           nonce: nonce.toString()
-        }
+        },
+        setupMode: 'fallback-session-wallet',
+        mainWallet: account,
+        routerAddress: REBYT_SESSION_ROUTER_ADDRESS
       })
     });
 
-    if (!solverResponse.ok) {
-      const errorBody = await solverResponse.json().catch(() => ({}));
-      throw new Error(errorBody.error || `Solver HTTP ${solverResponse.status}`);
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw new Error(body.error || `Solver HTTP ${response.status}`);
     }
 
-    const solverResult = await solverResponse.json();
-    const fundTx = solverResult.txHash;
-    setEscrowTx(fundTx || '');
+    const body = await response.json();
+    const fundTx = body.txHash;
+
+    setEscrowTx(fundTx);
     setPipeline((prev) =>
       prev.map((step) => {
         if (step.key === 'escrow') {
@@ -179,100 +164,91 @@ export default function App() {
     }
   }
 
-  async function findSettlementTx(hash) {
-    try {
-      const latestBlock = await publicClient.getBlockNumber();
-      const fromBlock = latestBlock > 20000n ? latestBlock - 20000n : 0n;
-
-      const releasedLogs = await publicClient.getLogs({
-        address: ESCROW_CONTRACT_ADDRESS,
-        event: releasedEvent,
-        args: { intentHash: hash },
-        fromBlock,
-        toBlock: latestBlock
-      });
-
-      if (releasedLogs.length > 0) {
-        return releasedLogs[releasedLogs.length - 1].transactionHash;
-      }
-
-      const refundedLogs = await publicClient.getLogs({
-        address: ESCROW_CONTRACT_ADDRESS,
-        event: refundedEvent,
-        args: { intentHash: hash },
-        fromBlock,
-        toBlock: latestBlock
-      });
-
-      if (refundedLogs.length > 0) {
-        return refundedLogs[refundedLogs.length - 1].transactionHash;
-      }
-    } catch {
-      return '';
-    }
-
-    return '';
-  }
-
   useEffect(() => {
     if (!intentHash) return;
 
+    let consecutiveErrors = 0;
+    let pollAttempts = 0;
+    const maxConsecutiveErrors = 5;
+    const maxPollAttempts = 120;
+
     const timer = setInterval(async () => {
+      pollAttempts += 1;
+      if (pollAttempts > maxPollAttempts) {
+        pushLog('Polling timeout reached. Keeping current status; check explorer links.');
+        clearInterval(timer);
+        return;
+      }
+
       try {
-        const data = await publicClient.readContract({
-          address: ESCROW_CONTRACT_ADDRESS,
-          abi: escrowAbi,
-          functionName: 'getIntent',
-          args: [intentHash]
-        });
+        const response = await fetch(`${SOLVER_URL}/${intentHash}/status`);
+        if (!response.ok) {
+          const body = await response.json().catch(() => ({}));
+          throw new Error(body.error || `Status HTTP ${response.status}`);
+        }
 
-        const state = Number(data.state ?? data[2]);
-        let settledTx = settlementTx;
+        consecutiveErrors = 0;
 
-        if ((state === 3 || state === 4) && !settledTx) {
-          settledTx = await findSettlementTx(intentHash);
-          if (settledTx) {
-            setSettlementTx(settledTx);
-            pushLog(`Settlement transaction detected: ${settledTx}`);
-          }
+        const statusData = await response.json();
+        const status = statusData.status;
+        const settlementHash = statusData.settlementTxHash || '';
+        const links = statusData.links || {};
+
+        if (settlementHash && settlementHash !== settlementTx) {
+          setSettlementTx(settlementHash);
+          pushLog(`Settlement transaction detected: ${settlementHash}`);
         }
 
         setPipeline((prev) =>
           prev.map((step) => {
             if (step.key === 'escrow') {
-              const status = state >= 1 ? 'confirmed' : step.status;
               return {
                 ...step,
-                status,
-                link: status === 'confirmed' && escrowTx ? `https://testnet.bscscan.com/tx/${escrowTx}` : ''
+                status: escrowTx ? 'confirmed' : step.status,
+                link: escrowTx ? `https://testnet.bscscan.com/tx/${escrowTx}` : ''
               };
             }
             if (step.key === 'validation') {
-              const status = state === 3 ? 'confirmed' : state === 2 ? 'processing' : step.status;
+              const validationProcessing = status === 'VALIDATING';
+              const validationConfirmed = status === 'RELEASED' || status === 'REFUNDED';
               return {
                 ...step,
-                status,
-                link: status === 'confirmed' ? `https://studio.genlayer.com/contract/${GENLAYER_CONTRACT_ADDRESS}` : ''
+                status: validationProcessing ? 'processing' : (validationConfirmed ? 'confirmed' : step.status),
+                link: links.genlayer || step.link
               };
             }
             if (step.key === 'settlement') {
-              const status = state === 3 ? 'confirmed' : step.status;
+              const settled = status === 'RELEASED' || status === 'REFUNDED';
               return {
                 ...step,
-                status,
-                link: status === 'confirmed' && settledTx ? `https://testnet.bscscan.com/tx/${settledTx}` : ''
+                status: settled ? 'confirmed' : step.status,
+                link: settled ? (links.settlement || (settlementHash ? `https://testnet.bscscan.com/tx/${settlementHash}` : '')) : ''
               };
             }
             return step;
           })
         );
+
+        if (status === 'RELEASED' || status === 'REFUNDED') {
+          clearInterval(timer);
+        }
+
+        if (statusData.error) {
+          pushLog(`Solver error: ${statusData.error}`);
+          clearInterval(timer);
+        }
       } catch (error) {
-        pushLog(`Polling error: ${error.message}`);
+        consecutiveErrors += 1;
+        pushLog(`Polling error (${consecutiveErrors}/${maxConsecutiveErrors}): ${error.message}`);
+        if (consecutiveErrors >= maxConsecutiveErrors) {
+          pushLog('Stopping polling after repeated errors.');
+          clearInterval(timer);
+        }
       }
     }, 3000);
 
     return () => clearInterval(timer);
-  }, [intentHash, escrowTx, settlementTx, publicClient]);
+  }, [intentHash, escrowTx, settlementTx]);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
@@ -283,6 +259,24 @@ export default function App() {
         </header>
 
         <form onSubmit={submitIntent} className="mb-8 grid gap-4 rounded-2xl border border-slate-800 bg-slate-900 p-6">
+          <div className="rounded-xl border border-slate-800 bg-slate-950 p-4">
+            <h3 className="mb-2 text-lg font-semibold">Session Onboarding (Fallback Productivo)</h3>
+            <p className="text-sm text-slate-300">Connect wallet once to simulate EIP-7702 upgrade. Checkout uses local session key only.</p>
+            {!isWalletUpgraded ? (
+              <button
+                type="button"
+                onClick={setupSessionWallet}
+                className="mt-3 rounded-lg bg-emerald-700 px-4 py-2 hover:bg-emerald-600"
+              >
+                Connect Wallet to Upgrade (EIP-7702)
+              </button>
+            ) : (
+              <p className="mt-3 text-sm text-emerald-300">Wallet Upgraded! Session limits active.</p>
+            )}
+            <p className="mt-2 text-xs text-slate-300 break-all">Main wallet: {account || '-'}</p>
+            <p className="text-xs text-slate-300 break-all">Session wallet: {sessionWalletAddress || '-'}</p>
+          </div>
+
           <div>
             <label className="mb-2 block text-sm text-slate-300">Recipient Address</label>
             <input
@@ -313,7 +307,11 @@ export default function App() {
             />
           </div>
           <div className="flex gap-3">
-            <button type="submit" disabled={isSubmitting} className="rounded-lg bg-indigo-600 px-4 py-2 hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-60">
+            <button
+              type="submit"
+              disabled={!isWalletUpgraded || isSubmitting}
+              className="rounded-lg bg-indigo-600 px-4 py-2 hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-60"
+            >
               Sign Intent &amp; Pay
             </button>
           </div>
