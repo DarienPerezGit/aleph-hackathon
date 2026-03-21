@@ -1,36 +1,74 @@
 import { useEffect, useState } from 'react';
-import {
-  parseAbi,
-  parseEther
-} from 'viem';
+import { parseEther } from 'viem';
 import { createWalletClient, custom } from 'viem';
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import { bscTestnet } from 'viem/chains';
 import { signPaymentIntentWithSessionAccount } from './lib/intentSigner';
+import Hero from './components/Hero';
+import SystemLayers from './components/SystemLayers';
+import BeforeAfter from './components/BeforeAfter';
 
-const escrowAbi = parseAbi([
-  'function fund(bytes32 intentHash, uint256 amount) external payable'
-]);
-
-const ESCROW_CONTRACT_ADDRESS = '0xc065d530eAb19955EedC11BD51920625100B3a6A';
 const REBYT_SESSION_ROUTER_ADDRESS = '0xBca0f7A094A5398598A8415270711ae3Dd46A986';
 const SOLVER_URL = 'http://localhost:3001/intent';
 
 const initialPipeline = [
-  { key: 'intent', name: 'Intent signed', network: 'offchain', status: 'idle', link: '' },
-  { key: 'escrow', name: 'Escrow funded', network: 'BSC Testnet', status: 'idle', link: '' },
-  { key: 'validation', name: 'AI validating', network: 'GenLayer Bradbury', status: 'idle', link: '' },
-  { key: 'settlement', name: 'Settlement done', network: 'BSC Testnet', status: 'idle', link: '' }
+  { key: 'intent',     name: 'Intent',     label: 'EIP-712 signed',    status: 'idle', link: '' },
+  { key: 'escrow',     name: 'Escrow',     label: 'BSC Testnet',       status: 'idle', link: '' },
+  { key: 'validation', name: 'Validation', label: 'GenLayer Bradbury', status: 'idle', link: '' },
+  { key: 'settlement', name: 'Settlement', label: 'BSC Testnet',       status: 'idle', link: '' },
 ];
-
-function statusCircleClass(status) {
-  if (status === 'confirmed') return 'bg-emerald-400';
-  if (status === 'processing') return 'bg-amber-300';
-  return 'bg-slate-500';
-}
 
 function nowLog(message) {
   return { message, timestamp: new Date().toLocaleTimeString() };
+}
+
+function PipelineTrace({ pipeline }) {
+  return (
+    <div className="flex items-start">
+      {pipeline.map((step, i) => (
+        <div key={step.key} className="flex items-start flex-1 min-w-0">
+          <div className="flex flex-col items-center flex-1 min-w-0">
+            <div className="flex items-center w-full">
+              {i > 0 && (
+                <div className={`flex-1 h-px ${step.status !== 'idle' ? 'bg-gray-900' : 'bg-gray-200'}`} />
+              )}
+              <div className="shrink-0">
+                {step.status === 'idle' && (
+                  <div className="w-3 h-3 rounded-full border border-gray-300" />
+                )}
+                {step.status === 'processing' && (
+                  <div className="w-3 h-3 rounded-full border border-gray-900 animate-pulse" />
+                )}
+                {step.status === 'confirmed' && (
+                  <div className="w-3 h-3 rounded-full bg-gray-900" />
+                )}
+              </div>
+              {i < pipeline.length - 1 && (
+                <div className={`flex-1 h-px ${step.status === 'confirmed' ? 'bg-gray-900' : 'bg-gray-200'}`} />
+              )}
+            </div>
+            <div className="mt-3 px-1 w-full text-center">
+              <p className="text-xs font-semibold text-gray-900 truncate">{step.name}</p>
+              <p className="text-xs text-gray-400 mt-0.5 font-mono leading-tight" style={{ fontSize: '10px' }}>
+                {step.label}
+              </p>
+              {step.link && step.status === 'confirmed' && (
+                <a
+                  href={step.link}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs text-gray-700 underline mt-1 block font-mono"
+                  style={{ fontSize: '10px' }}
+                >
+                  ↗ explorer
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export default function App() {
@@ -251,111 +289,150 @@ export default function App() {
   }, [intentHash, escrowTx, settlementTx]);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
-      <div className="mx-auto max-w-6xl px-4 py-8">
-        <header className="mb-8 rounded-2xl border border-slate-800 bg-slate-900 p-6">
-          <h1 className="text-3xl font-bold">Rebyt</h1>
-          <p className="mt-2 text-slate-300">Blockchains execute transactions. Rebyt validates outcomes before value moves.</p>
-        </header>
+    <div className="min-h-screen bg-white text-gray-900">
+      {/* Nav */}
+      <nav className="border-b border-gray-200 px-8 md:px-16 py-4 flex items-center justify-between">
+        <span className="text-sm font-bold tracking-[0.2em] uppercase">Rebyt</span>
+        <span className="text-xs text-gray-400 font-mono">BSC Testnet · Chain 97</span>
+      </nav>
 
-        <form onSubmit={submitIntent} className="mb-8 grid gap-4 rounded-2xl border border-slate-800 bg-slate-900 p-6">
-          <div className="rounded-xl border border-slate-800 bg-slate-950 p-4">
-            <h3 className="mb-2 text-lg font-semibold">Session Onboarding (Fallback Productivo)</h3>
-            <p className="text-sm text-slate-300">Connect wallet once to simulate EIP-7702 upgrade. Checkout uses local session key only.</p>
+      <Hero />
+      <SystemLayers />
+      <BeforeAfter />
+
+      {/* Demo Console */}
+      <section className="py-16 px-8 md:px-16 border-b border-gray-200">
+        <p className="text-xs tracking-widest uppercase text-gray-400 mb-12 font-mono">Demo Console</p>
+
+        {/* Session Wallet */}
+        <div className="border border-gray-200 mb-8">
+          <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+            <div>
+              <p className="text-xs font-mono text-gray-400 mb-0.5">EIP-7702</p>
+              <p className="text-sm font-semibold">Session Wallet</p>
+            </div>
             {!isWalletUpgraded ? (
               <button
                 type="button"
                 onClick={setupSessionWallet}
-                className="mt-3 rounded-lg bg-emerald-700 px-4 py-2 hover:bg-emerald-600"
+                className="text-xs border border-gray-900 px-4 py-2 hover:bg-gray-900 hover:text-white transition-colors font-mono"
               >
-                Connect Wallet to Upgrade (EIP-7702)
+                Initialize →
               </button>
             ) : (
-              <p className="mt-3 text-sm text-emerald-300">Wallet Upgraded! Session limits active.</p>
+              <span className="text-xs font-mono text-gray-400 border border-gray-200 px-3 py-1">Active</span>
             )}
-            <p className="mt-2 text-xs text-slate-300 break-all">Main wallet: {account || '-'}</p>
-            <p className="text-xs text-slate-300 break-all">Session wallet: {sessionWalletAddress || '-'}</p>
           </div>
+          {isWalletUpgraded && (
+            <div className="px-6 py-4 grid md:grid-cols-2 gap-4">
+              <div>
+                <p className="text-xs text-gray-400 mb-1 font-mono">main_wallet</p>
+                <p className="text-xs font-mono text-gray-700 break-all">{account}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-400 mb-1 font-mono">session_wallet</p>
+                <p className="text-xs font-mono text-gray-700 break-all">{sessionWalletAddress}</p>
+              </div>
+            </div>
+          )}
+        </div>
 
-          <div>
-            <label className="mb-2 block text-sm text-slate-300">Recipient Address</label>
-            <input
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
-              value={recipient}
-              onChange={(event) => setRecipient(event.target.value)}
-              required
-            />
+        {/* Intent Form */}
+        <form onSubmit={submitIntent} className="border border-gray-200 mb-8">
+          <div className="px-6 py-4 border-b border-gray-100">
+            <p className="text-xs font-mono text-gray-400 mb-0.5">EIP-712</p>
+            <p className="text-sm font-semibold">Payment Intent</p>
           </div>
-          <div>
-            <label className="mb-2 block text-sm text-slate-300">Amount (tBNB)</label>
-            <input
-              type="number"
-              step="0.0001"
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
-              value={amount}
-              onChange={(event) => setAmount(event.target.value)}
-              required
-            />
-          </div>
-          <div>
-            <label className="mb-2 block text-sm text-slate-300">Condition</label>
-            <textarea
-              className="h-24 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
-              value={condition}
-              onChange={(event) => setCondition(event.target.value)}
-              required
-            />
-          </div>
-          <div className="flex gap-3">
-            <button
-              type="submit"
-              disabled={!isWalletUpgraded || isSubmitting}
-              className="rounded-lg bg-indigo-600 px-4 py-2 hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              Sign Intent &amp; Pay
-            </button>
+          <div className="px-6 py-6 grid gap-6">
+            <div>
+              <label className="block text-xs text-gray-400 mb-2 font-mono">recipient</label>
+              <input
+                className="w-full border-b border-gray-200 pb-2 text-sm font-mono focus:outline-none focus:border-gray-900 bg-transparent transition-colors"
+                value={recipient}
+                onChange={(event) => setRecipient(event.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-400 mb-2 font-mono">amount_tbnb</label>
+              <input
+                type="number"
+                step="0.0001"
+                className="w-full border-b border-gray-200 pb-2 text-sm font-mono focus:outline-none focus:border-gray-900 bg-transparent transition-colors"
+                value={amount}
+                onChange={(event) => setAmount(event.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-400 mb-2 font-mono">condition</label>
+              <textarea
+                className="w-full border-b border-gray-200 pb-2 text-sm font-mono focus:outline-none focus:border-gray-900 bg-transparent transition-colors resize-none h-16"
+                value={condition}
+                onChange={(event) => setCondition(event.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <button
+                type="submit"
+                disabled={!isWalletUpgraded || isSubmitting}
+                className="text-xs border border-gray-900 px-6 py-2.5 hover:bg-gray-900 hover:text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed font-mono"
+              >
+                {isSubmitting ? 'Submitting...' : 'Sign & Submit Intent →'}
+              </button>
+            </div>
           </div>
         </form>
 
-        <section className="mb-8 rounded-2xl border border-slate-800 bg-slate-900 p-6">
-          <div className="grid gap-4 md:grid-cols-4">
-            {pipeline.map((step) => (
-              <article key={step.key} className="rounded-xl border border-slate-800 bg-slate-950 p-4">
-                <div className="mb-3 flex items-center gap-2">
-                  <span className={`h-3 w-3 rounded-full ${statusCircleClass(step.status)}`} />
-                  <h3 className="text-base font-semibold">{step.name}</h3>
-                </div>
-                <span className="inline-block rounded-full bg-slate-800 px-2 py-1 text-xs text-slate-200">
-                  {step.network}
-                </span>
-                {step.link && step.status === 'confirmed' ? (
-                  <a className="mt-3 block text-sm text-indigo-300 underline" href={step.link} target="_blank" rel="noreferrer">
-                    Explorer link
-                  </a>
-                ) : null}
-              </article>
-            ))}
+        {/* Pipeline */}
+        <div className="border border-gray-200 mb-8">
+          <div className="px-6 py-4 border-b border-gray-100">
+            <p className="text-xs font-mono text-gray-400 mb-0.5">Live</p>
+            <p className="text-sm font-semibold">Execution Pipeline</p>
           </div>
-        </section>
+          <div className="px-8 py-10">
+            <PipelineTrace pipeline={pipeline} />
+          </div>
+          {intentHash && (
+            <div className="px-6 pb-5 border-t border-gray-100 pt-4">
+              <p className="text-xs text-gray-400 font-mono break-all">
+                intent_hash: <span className="text-gray-700">{intentHash}</span>
+              </p>
+            </div>
+          )}
+        </div>
 
-        <section className="mb-8 rounded-2xl border border-slate-800 bg-slate-900 p-4">
-          <h3 className="mb-2 text-lg font-semibold">Intent details</h3>
-          <p className="text-xs text-slate-300 break-all">intentHash: {intentHash || '-'}</p>
-        </section>
+        {/* Activity Log */}
+        <div className="border border-gray-200">
+          <div className="px-6 py-4 border-b border-gray-100">
+            <p className="text-xs font-mono text-gray-400 mb-0.5">Stream</p>
+            <p className="text-sm font-semibold">Activity Log</p>
+          </div>
+          <div className="px-6 py-4 min-h-20 max-h-52 overflow-y-auto">
+            {logs.length === 0 ? (
+              <p className="text-xs text-gray-400 font-mono">Awaiting events.</p>
+            ) : (
+              <ul className="space-y-1.5">
+                {logs.map((entry, index) => (
+                  <li key={`${entry.timestamp}-${index}`} className="text-xs font-mono text-gray-600">
+                    <span className="text-gray-400">{entry.timestamp}</span>{' '}
+                    {entry.message}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      </section>
 
-        <section className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
-          <h3 className="mb-3 text-lg font-semibold">Activity Log</h3>
-          <ul className="space-y-2 text-sm">
-            {logs.length === 0 ? <li className="text-slate-400">No events yet.</li> : null}
-            {logs.map((entry, index) => (
-              <li key={`${entry.timestamp}-${index}`} className="rounded-lg border border-slate-800 bg-slate-950 px-3 py-2">
-                <span className="text-slate-400">[{entry.timestamp}] </span>
-                {entry.message}
-              </li>
-            ))}
-          </ul>
-        </section>
-      </div>
+      {/* Footer */}
+      <footer className="px-8 md:px-16 py-6 flex items-center justify-between border-t border-gray-100">
+        <span className="text-xs text-gray-400 font-mono">Rebyt · Aleph Hackathon 2026</span>
+        <span className="text-xs text-gray-400 font-mono">
+          Escrow: 0x5191...BB98C
+        </span>
+      </footer>
     </div>
   );
 }
