@@ -19,12 +19,14 @@ because nobody removed the friction."
 "Rebyt is the architecture that can change that.
 The user signs an intent. A Solver deposits funds into escrow.
 GenLayer validators evaluate whether delivery conditions were met using AI consensus.
-Funds release automatically. End to end."
+But we don't blindly trust AI. There is a dispute window — like an optimistic rollup.
+Only after finality, funds release automatically. End to end."
 
 ## Key framing
 - Not a better transaction -> a payment primitive
 - Not a wallet experience -> a session-based interaction model
 - Not a CAPTCHA -> an intelligent validation layer
+- Not blind AI trust -> optimistic verification with dispute window
 - EIP-7702 enables execution. Rebyt defines the lifecycle.
 
 ## Sponsor callouts

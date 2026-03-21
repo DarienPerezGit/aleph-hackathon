@@ -10,7 +10,8 @@ Because nobody removed the friction."
 "Rebyt is intent-based payment infrastructure.
 The user signs what they want. A Solver deposits funds into escrow.
 GenLayer AI validators evaluate whether delivery conditions were met.
-Escrow releases automatically. No wallet interaction required.
+But we don't blindly trust AI. There is a dispute window.
+Only after finality, escrow releases automatically.
 No gas. No wallet interaction. No friction."
 
 ## [01:00 - 02:30] Live demo
@@ -18,6 +19,7 @@ Show each step in real time using Plan B (recommended hackathon flow):
 - Step 1: User signs intent in frontend -> show EIP-712 signature
 - Step 2: Solver funds escrow on BSC -> show BscScan tx link
 - Step 3: Run GenLayer validation in Studio UI (Full Consensus) -> show 4/4 validators Agree + ACCEPTED
+	- Explain: "The result is now ACCEPTED, but not yet final. On Bradbury, there's a 30-minute dispute window where anyone can appeal. We're using StudioNet for demo speed."
 - Step 4: Execute settlement on BSC with relayer manual mode:
 	- `node scripts/rebyt-relayer.mjs <intentHash> approved` (release)
 	- or `node scripts/rebyt-relayer.mjs <intentHash> rejected` (refund)
@@ -28,5 +30,6 @@ Note for judges: GenLayer consensus is demonstrated in Studio UI, and settlement
 ## [02:30 - 03:00] Roadmap + sponsors
 "Built on BNB Chain — with EIP-7702 upgrade path ready on BNB Pascal.
 Validation layer powered by GenLayer Bradbury Optimistic Democracy consensus.
+With a real finality model: AI proposes truth, there's a dispute window, then funds are finalized.
 This is not a better transaction.
 This is a payment primitive."

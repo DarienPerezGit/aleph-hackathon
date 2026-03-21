@@ -10,6 +10,7 @@ const initialPipeline = [
   { key: 'intent',     name: 'Intent',     label: 'EIP-712',           status: 'idle', link: '' },
   { key: 'escrow',     name: 'Escrow',     label: 'BSC Testnet',       status: 'idle', link: '' },
   { key: 'validation', name: 'Validation', label: 'GenLayer Bradbury', status: 'idle', link: '' },
+  { key: 'finality',   name: 'Finality',   label: 'Dispute Window',    status: 'idle', link: '' },
   { key: 'settlement', name: 'Settlement', label: 'BSC Testnet',       status: 'idle', link: '' },
 ];
 
@@ -36,17 +37,20 @@ function PipelineTrace({ pipeline }) {
                 {step.status === 'active' && (
                   <div className="w-2.5 h-2.5 rounded-full border-2 border-[#111] status-pulse" />
                 )}
+                {step.status === 'pending' && (
+                  <div className="w-2.5 h-2.5 rounded-full border-2 border-amber-500 status-pulse" />
+                )}
                 {step.status === 'completed' && (
                   <div className="w-2.5 h-2.5 rounded-full bg-[#111]" />
                 )}
               </div>
               {i < pipeline.length - 1 && (
-                <div className={`flex-1 h-px ${step.status === 'completed' ? 'bg-[#111]' : 'bg-black/10'}`} />
+                <div className={`flex-1 h-px ${step.status === 'completed' ? 'bg-[#111]' : step.status === 'pending' ? 'bg-amber-300' : 'bg-black/10'}`} />
               )}
             </div>
             <div className="mt-2.5 px-1 w-full text-center">
-              <p className="text-xs font-semibold text-[#111]">{step.name}</p>
-              <p className="text-[#999] mt-0.5 font-mono" style={{ fontSize: '10px' }}>{step.label}</p>
+              <p className={`text-xs font-semibold ${step.status === 'pending' ? 'text-amber-600' : 'text-[#111]'}`}>{step.name}</p>
+              <p className="text-[#999] mt-0.5 font-mono" style={{ fontSize: '10px' }}>{step.status === 'pending' ? '30 min in prod' : step.label}</p>
               {step.link && step.status === 'completed' && (
                 <a
                   href={step.link}
@@ -126,6 +130,23 @@ export default function DemoPanel() {
 
     setPhase('proof.valid');
     pushLog('proof.valid');
+    await delay(500);
+
+    // consensus.accepted — AI verdict posted
+    setPhase('consensus.accepted');
+    setPipeline((p) => p.map((s) => (s.key === 'finality' ? { ...s, status: 'pending' } : s)));
+    pushLog('consensus.accepted — validators: MAJORITY_AGREE');
+    await delay(1200);
+
+    // finality.pending — dispute window
+    setPhase('finality.pending');
+    pushLog('finality.pending — dispute window active (30 min in production)');
+    await delay(2500);
+
+    // finality.confirmed — no appeals
+    setPhase('finality.confirmed');
+    setPipeline((p) => p.map((s) => (s.key === 'finality' ? { ...s, status: 'completed' } : s)));
+    pushLog('finality.confirmed — no appeals, result finalized');
     await delay(500);
 
     setPhase('ready_for_execution');
@@ -283,7 +304,8 @@ export default function DemoPanel() {
     return () => clearInterval(timer);
   }, [intentHash, escrowTx, settlementTx]);
 
-  const isProcessing = ['intent.created', 'validation.started', 'validation.passed', 'proof.generating', 'proof.valid'].includes(phase);
+  const isProcessing = ['intent.created', 'validation.started', 'validation.passed', 'proof.generating', 'proof.valid', 'consensus.accepted', 'finality.pending', 'finality.confirmed'].includes(phase);
+  const isFinalityPending = phase === 'finality.pending' || phase === 'consensus.accepted';
   const isReadyForExecution = phase === 'ready_for_execution';
   const isExecuting = phase === 'executing';
   const isCompleted = phase === 'completed';
@@ -353,15 +375,15 @@ export default function DemoPanel() {
               disabled={formLocked}
               className="w-full text-sm font-mono border border-black/10 py-3 rounded-[10px] hover:border-[#111] hover:bg-[#111] hover:text-white text-[#555] transition-all disabled:opacity-30 disabled:cursor-not-allowed"
             >
-              {isProcessing ? '[ processing... ]' : '[ create intent ]'}
+              {isFinalityPending ? '[ pending finality... ]' : isProcessing ? '[ processing... ]' : '[ create intent ]'}
             </button>
           </form>
 
           {isReadyForExecution && (
             <div className="mt-7 space-y-3">
               <div className="border border-emerald-200 rounded-[10px] p-3 bg-emerald-50/60">
-                <p className="text-xs font-mono text-emerald-700">✓ validation passed · ✓ proof valid</p>
-                <p className="text-xs font-mono text-[#999] mt-1">connect wallet to execute</p>
+                <p className="text-xs font-mono text-emerald-700">✓ consensus · ✓ proof valid · ✓ finalized</p>
+                <p className="text-xs font-mono text-[#999] mt-1">connect wallet to execute settlement</p>
               </div>
               <button
                 type="button"

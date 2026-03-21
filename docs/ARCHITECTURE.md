@@ -35,6 +35,21 @@ The system relies on a developer-defined Equivalence Principle:
 
 This ensures convergence on a binary decision while allowing flexible reasoning across validators.
 
+#### Finality Model
+
+GenLayer Bradbury uses an optimistic finality model:
+
+1. **Consensus** — Validators run LLM evaluation → majority agrees on YES or NO
+2. **ACCEPTED** — Result is posted on-chain, marked as accepted
+3. **Dispute Window** — 30-minute window where anyone can appeal the result
+4. **FINALIZED** — No appeals → result becomes permanent and immutable
+
+Settlement only executes **after finality**. The Relayer waits for the result to be finalized before calling `release()` or `refund()` on the escrow contract.
+
+This mirrors optimistic rollups: assume correctness, allow challenge, then finalize. It ensures an explicit trust model where AI is not blindly trusted — there is always a window for human review.
+
+**Demo note**: StudioNet (fast path) is used for demo speed. On Bradbury testnet, the 30-minute dispute window is real.
+
 This validation pattern generalizes beyond payment settlement.
 
 Any operation that transfers value — such as releasing escrow funds, distributing tokens from a faucet, or executing automated payouts — can be gated by the same intelligent validation mechanism.
@@ -54,7 +69,7 @@ This positions the Validation Layer as a reusable primitive for secure value tra
 - `RebytEscrow.sol` on BSC Testnet
 - `DeliveryValidator.py` on GenLayer Bradbury
 - `rebyt-relayer.mjs` connecting both
-- Demo frontend (one page, four status steps)
+- Demo frontend (one page, five status steps: Intent → Escrow → Validation → Finality → Settlement)
 
 Full signature verification and trust minimization are part of future iterations.
 

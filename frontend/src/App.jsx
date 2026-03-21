@@ -67,6 +67,7 @@ const initialPipeline = [
   { key: 'intent',     name: 'Intent',     label: 'EIP-712',           status: 'idle', link: '' },
   { key: 'escrow',     name: 'Escrow',     label: 'BSC Testnet',       status: 'idle', link: '' },
   { key: 'validation', name: 'Validation', label: 'GenLayer Bradbury', status: 'idle', link: '' },
+  { key: 'finality',   name: 'Finality',   label: 'Dispute Window',    status: 'idle', link: '' },
   { key: 'settlement', name: 'Settlement', label: 'BSC Testnet',       status: 'idle', link: '' },
 ];
 
@@ -93,17 +94,20 @@ function PipelineTrace({ pipeline }) {
                 {step.status === 'active' && (
                   <div className="w-2.5 h-2.5 rounded-full border border-gray-900 animate-pulse" />
                 )}
+                {step.status === 'pending' && (
+                  <div className="w-2.5 h-2.5 rounded-full border-2 border-amber-500 animate-pulse" />
+                )}
                 {step.status === 'completed' && (
                   <div className="w-2.5 h-2.5 rounded-full bg-gray-900" />
                 )}
               </div>
               {i < pipeline.length - 1 && (
-                <div className={`flex-1 h-px ${step.status === 'completed' ? 'bg-gray-900' : 'bg-gray-200'}`} />
+                <div className={`flex-1 h-px ${step.status === 'completed' ? 'bg-gray-900' : step.status === 'pending' ? 'bg-amber-300' : 'bg-gray-200'}`} />
               )}
             </div>
             <div className="mt-2.5 px-1 w-full text-center">
-              <p className="text-xs font-semibold text-gray-900">{step.name}</p>
-              <p className="text-gray-400 mt-0.5 font-mono" style={{ fontSize: '10px' }}>{step.label}</p>
+              <p className={`text-xs font-semibold ${step.status === 'pending' ? 'text-amber-600' : 'text-gray-900'}`}>{step.name}</p>
+              <p className="text-gray-400 mt-0.5 font-mono" style={{ fontSize: '10px' }}>{step.status === 'pending' ? '30 min in prod' : step.label}</p>
               {step.link && step.status === 'completed' && (
                 <a
                   href={step.link}
@@ -194,6 +198,23 @@ export default function App() {
     // proof.valid
     setPhase('proof.valid');
     pushLog('proof.valid');
+    await delay(500);
+
+    // consensus.accepted — AI verdict posted
+    setPhase('consensus.accepted');
+    setPipeline((p) => p.map((s) => (s.key === 'finality' ? { ...s, status: 'pending' } : s)));
+    pushLog('consensus.accepted — validators: MAJORITY_AGREE');
+    await delay(1200);
+
+    // finality.pending — dispute window
+    setPhase('finality.pending');
+    pushLog('finality.pending — dispute window active (30 min in production)');
+    await delay(2500);
+
+    // finality.confirmed — no appeals
+    setPhase('finality.confirmed');
+    setPipeline((p) => p.map((s) => (s.key === 'finality' ? { ...s, status: 'completed' } : s)));
+    pushLog('finality.confirmed — no appeals, result finalized');
     await delay(500);
 
     // ready_for_execution — wallet prompt appears
@@ -350,7 +371,8 @@ export default function App() {
     return () => clearInterval(timer);
   }, [intentHash, escrowTx, settlementTx]);
 
-  const isProcessing = ['intent.created', 'validation.started', 'validation.passed', 'proof.generating', 'proof.valid'].includes(phase);
+  const isProcessing = ['intent.created', 'validation.started', 'validation.passed', 'proof.generating', 'proof.valid', 'consensus.accepted', 'finality.pending', 'finality.confirmed'].includes(phase);
+  const isFinalityPending = phase === 'finality.pending' || phase === 'consensus.accepted';
   const isReadyForExecution = phase === 'ready_for_execution';
   const isExecuting = phase === 'executing';
   const isCompleted = phase === 'completed';
@@ -380,8 +402,9 @@ export default function App() {
               }`}
             />
             {phase === 'idle' && 'ready'}
-            {isProcessing && 'validating'}
-            {isReadyForExecution && 'awaiting wallet'}
+            {isProcessing && !isFinalityPending && 'validating'}
+            {isFinalityPending && 'pending finality'}
+            {isReadyForExecution && 'finalized'}
             {isExecuting && 'executing'}
             {isCompleted && 'settled'}
           </span>
@@ -536,6 +559,9 @@ export default function App() {
                       {phase === 'validation.passed' && '● validation passed'}
                       {phase === 'proof.generating' && '● generating Groth16 proof...'}
                       {phase === 'proof.valid' && '● proof verified'}
+                      {phase === 'consensus.accepted' && '● consensus: ACCEPTED'}
+                      {phase === 'finality.pending' && '● dispute window active...'}
+                      {phase === 'finality.confirmed' && '● finalized — no appeals'}
                     </p>
                     <p className="text-xs font-mono text-gray-300">no wallet required at this stage</p>
                   </div>
@@ -545,7 +571,7 @@ export default function App() {
                   <div className="space-y-4">
                     <div className="border border-gray-200 p-3">
                       <p className="text-xs font-mono text-gray-700">
-                        ✓ validation passed · ✓ proof valid
+                        ✓ validation passed · ✓ proof valid · ✓ finalized
                       </p>
                       <p className="text-xs font-mono text-gray-400 mt-1">
                         connect wallet to execute settlement
