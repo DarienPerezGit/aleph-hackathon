@@ -18,3 +18,9 @@ scripts/*.err.log
 circuits/*.ptau
 circuits/*.zkey
 call-zk-output.txt
+
+# Frontend build output
+frontend/dist/
+
+# Local logs
+logs/
