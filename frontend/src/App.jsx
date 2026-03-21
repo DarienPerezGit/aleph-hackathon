@@ -146,12 +146,12 @@ export default function App() {
     }
     setIsConnecting(true);
     try {
-      // Check if already connected first (no popup needed)
-      let accounts = await window.ethereum.request({ method: 'eth_accounts' });
-      if (!accounts || accounts.length === 0) {
-        pushLog('check MetaMask → click the extension icon if popup did not appear');
-        accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-      }
+      // Always show the MetaMask account selector popup
+      await window.ethereum.request({
+        method: 'wallet_requestPermissions',
+        params: [{ eth_accounts: {} }],
+      });
+      const accounts = await window.ethereum.request({ method: 'eth_accounts' });
       const selected = accounts[0];
       const generatedPrivateKey = generatePrivateKey();
       const sessionAccount = privateKeyToAccount(generatedPrivateKey);
