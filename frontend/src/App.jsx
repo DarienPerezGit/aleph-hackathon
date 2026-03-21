@@ -141,17 +141,25 @@ export default function App() {
   const pushLog = (message) => setLogs((prev) => [nowLog(message), ...prev]);
 
   async function setupSessionWallet() {
-    if (!window.ethereum) throw new Error('No wallet found');
-    const walletClient = createWalletClient({ chain: bscTestnet, transport: custom(window.ethereum) });
-    const [selected] = await walletClient.requestAddresses();
-    const generatedPrivateKey = generatePrivateKey();
-    const sessionAccount = privateKeyToAccount(generatedPrivateKey);
-    setAccount(selected);
-    setSessionPrivateKey(generatedPrivateKey);
-    setSessionWalletAddress(sessionAccount.address);
-    setIsWalletUpgraded(true);
-    pushLog(`main_wallet: ${selected}`);
-    pushLog(`session_wallet: ${sessionAccount.address}`);
+    try {
+      if (!window.ethereum) {
+        pushLog('error: no wallet detected (install MetaMask)');
+        return;
+      }
+      pushLog('requesting wallet access...');
+      const walletClient = createWalletClient({ chain: bscTestnet, transport: custom(window.ethereum) });
+      const [selected] = await walletClient.requestAddresses();
+      const generatedPrivateKey = generatePrivateKey();
+      const sessionAccount = privateKeyToAccount(generatedPrivateKey);
+      setAccount(selected);
+      setSessionPrivateKey(generatedPrivateKey);
+      setSessionWalletAddress(sessionAccount.address);
+      setIsWalletUpgraded(true);
+      pushLog(`main_wallet: ${selected}`);
+      pushLog(`session_wallet: ${sessionAccount.address}`);
+    } catch (error) {
+      pushLog(`error: ${error.message}`);
+    }
   }
 
   async function submitIntent(event) {
