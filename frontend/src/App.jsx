@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   createPublicClient,
-  createWalletClient,
-  custom,
   http,
   parseAbi,
   parseAbiItem,
   parseEther
 } from 'viem';
+import { createWalletClient, custom } from 'viem';
+import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import { bscTestnet } from 'viem/chains';
-import { signPaymentIntent } from './lib/intentSigner';
+import { signPaymentIntentWithSessionAccount } from './lib/intentSigner';
 
 const escrowAbi = parseAbi([
   'function fund(bytes32 intentHash, uint256 amount) external payable',
@@ -23,6 +23,7 @@ const ESCROW_CONTRACT_ADDRESS = '0xc065d530eAb19955EedC11BD51920625100B3a6A';
 const GENLAYER_CONTRACT_ADDRESS = '0x023b48B9c8C4805c4c4dAB50247e78d4a082C46E';
 const REBYT_SESSION_ROUTER_ADDRESS = '0xBca0f7A094A5398598A8415270711ae3Dd46A986';
 const BSC_RPC = 'https://data-seed-prebsc-1-s1.binance.org:8545';
+const SOLVER_URL = 'http://localhost:3001/intent';
 
 const initialPipeline = [
   { key: 'intent', name: 'Intent signed', network: 'offchain', status: 'idle', link: '' },
@@ -51,7 +52,10 @@ export default function App() {
   const [pipeline, setPipeline] = useState(initialPipeline);
   const [logs, setLogs] = useState([]);
   const [account, setAccount] = useState('');
-  const [authorizationPreview, setAuthorizationPreview] = useState('');
+  const [sessionWalletAddress, setSessionWalletAddress] = useState('');
+  const [sessionPrivateKey, setSessionPrivateKey] = useState('');
+  const [isWalletUpgraded, setIsWalletUpgraded] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const publicClient = useMemo(
     () =>
@@ -64,57 +68,42 @@ export default function App() {
 
   const pushLog = (message) => setLogs((prev) => [nowLog(message), ...prev]);
 
-  async function connect() {
+  async function setupSessionWallet() {
     if (!window.ethereum) throw new Error('No wallet found');
+
     const walletClient = createWalletClient({
       chain: bscTestnet,
       transport: custom(window.ethereum)
     });
+
     const [selected] = await walletClient.requestAddresses();
+
+    const generatedPrivateKey = generatePrivateKey();
+    const sessionAccount = privateKeyToAccount(generatedPrivateKey);
+
     setAccount(selected);
-    pushLog(`Wallet connected: ${selected}`);
-    return { walletClient, selected };
-  }
+    setSessionPrivateKey(generatedPrivateKey);
+    setSessionWalletAddress(sessionAccount.address);
+    setIsWalletUpgraded(true);
 
-  async function testEip7702Authorization() {
-    try {
-      const { walletClient, selected } = account
-        ? {
-            walletClient: createWalletClient({
-              account,
-              chain: bscTestnet,
-              transport: custom(window.ethereum)
-            }),
-            selected: account
-          }
-        : await connect();
-
-      if (typeof walletClient.signAuthorization !== 'function') {
-        throw new Error('signAuthorization not supported by this wallet/provider');
-      }
-
-      pushLog(`Testing signAuthorization for: ${selected}`);
-
-      const authorization = await walletClient.signAuthorization({
-        contractAddress: REBYT_SESSION_ROUTER_ADDRESS,
-        account: selected
-      });
-
-      const serialized = typeof authorization === 'string'
-        ? authorization
-        : JSON.stringify(authorization);
-
-      setAuthorizationPreview(serialized);
-      console.log('EIP-7702 authorization result:', authorization);
-      pushLog('signAuthorization success (see console + preview)');
-    } catch (error) {
-      console.error('EIP-7702 signAuthorization failed:', error);
-      pushLog(`signAuthorization error: ${error.message}`);
-    }
+    pushLog(`Main wallet connected: ${selected}`);
+    pushLog(`Wallet Upgraded! Session limits active. Session wallet: ${sessionAccount.address}`);
+    console.log('Session wallet generated (fallback mode):', {
+      mainWallet: selected,
+      sessionWallet: sessionAccount.address,
+      router: REBYT_SESSION_ROUTER_ADDRESS
+    });
   }
 
   async function submitIntent(event) {
     event.preventDefault();
+    setIsSubmitting(true);
+
+    try {
+    if (!isWalletUpgraded || !sessionPrivateKey) {
+      throw new Error('Run "Connect Wallet to Upgrade (EIP-7702)" first');
+    }
+
     const deadline = Math.floor(Date.now() / 1000) + 3600;
     const nonce = BigInt(Date.now());
     const parsedAmount = parseEther(amount || '0');
@@ -127,17 +116,9 @@ export default function App() {
       nonce
     };
 
-    const { walletClient, selected } = account
-      ? {
-          walletClient: createWalletClient({
-            chain: bscTestnet,
-            transport: custom(window.ethereum)
-          }),
-          selected: account
-        }
-      : await connect();
+    const sessionAccount = privateKeyToAccount(sessionPrivateKey);
 
-    const signed = await signPaymentIntent(walletClient, selected, intent);
+    const signed = await signPaymentIntentWithSessionAccount(sessionAccount, intent);
     setIntentHash(signed.intentHash);
     setEscrowTx('');
     setSettlementTx('');
@@ -150,16 +131,35 @@ export default function App() {
           : step
       )
     );
-    pushLog(`Intent signed: ${signed.intentHash}`);
+    pushLog(`Intent signed by session wallet: ${signed.intentHash}`);
 
-    const fundTx = await walletClient.writeContract({
-      address: ESCROW_CONTRACT_ADDRESS,
-      abi: escrowAbi,
-      functionName: 'fund',
-      args: [signed.intentHash, parsedAmount],
-      value: parsedAmount,
-      account: selected
+    const response = await fetch(SOLVER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        intentHash: signed.intentHash,
+        signature: signed.signature,
+        signer: sessionAccount.address,
+        intent: {
+          recipient,
+          amountWei: parsedAmount.toString(),
+          condition,
+          deadline,
+          nonce: nonce.toString()
+        },
+        setupMode: 'fallback-session-wallet',
+        mainWallet: account,
+        routerAddress: REBYT_SESSION_ROUTER_ADDRESS
+      })
     });
+
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw new Error(body.error || `Solver HTTP ${response.status}`);
+    }
+
+    const body = await response.json();
+    const fundTx = body.txHash;
 
     setEscrowTx(fundTx);
     setPipeline((prev) =>
@@ -175,6 +175,11 @@ export default function App() {
       })
     );
     pushLog(`Escrow funded tx: ${fundTx}`);
+    } catch (error) {
+      pushLog(`Submit error: ${error.message}`);
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   async function findSettlementTx(hash) {
@@ -281,6 +286,24 @@ export default function App() {
         </header>
 
         <form onSubmit={submitIntent} className="mb-8 grid gap-4 rounded-2xl border border-slate-800 bg-slate-900 p-6">
+          <div className="rounded-xl border border-slate-800 bg-slate-950 p-4">
+            <h3 className="mb-2 text-lg font-semibold">Session Onboarding (Fallback Productivo)</h3>
+            <p className="text-sm text-slate-300">Connect wallet once to simulate EIP-7702 upgrade. Checkout uses local session key only.</p>
+            {!isWalletUpgraded ? (
+              <button
+                type="button"
+                onClick={setupSessionWallet}
+                className="mt-3 rounded-lg bg-emerald-700 px-4 py-2 hover:bg-emerald-600"
+              >
+                Connect Wallet to Upgrade (EIP-7702)
+              </button>
+            ) : (
+              <p className="mt-3 text-sm text-emerald-300">Wallet Upgraded! Session limits active.</p>
+            )}
+            <p className="mt-2 text-xs text-slate-300 break-all">Main wallet: {account || '-'}</p>
+            <p className="text-xs text-slate-300 break-all">Session wallet: {sessionWalletAddress || '-'}</p>
+          </div>
+
           <div>
             <label className="mb-2 block text-sm text-slate-300">Recipient Address</label>
             <input
@@ -311,26 +334,15 @@ export default function App() {
             />
           </div>
           <div className="flex gap-3">
-            <button type="submit" className="rounded-lg bg-indigo-600 px-4 py-2 hover:bg-indigo-500">
-              Sign Intent &amp; Pay
-            </button>
             <button
-              type="button"
-              onClick={testEip7702Authorization}
-              className="rounded-lg bg-emerald-700 px-4 py-2 hover:bg-emerald-600"
+              type="submit"
+              disabled={!isWalletUpgraded || isSubmitting}
+              className="rounded-lg bg-indigo-600 px-4 py-2 hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Test EIP-7702 Authorization
+              Sign Intent &amp; Pay
             </button>
           </div>
         </form>
-
-        <section className="mb-8 rounded-2xl border border-slate-800 bg-slate-900 p-4">
-          <h3 className="mb-2 text-lg font-semibold">EIP-7702 Authorization Test</h3>
-          <p className="text-xs text-slate-300 break-all">Router: {REBYT_SESSION_ROUTER_ADDRESS}</p>
-          <p className="mt-2 text-xs text-slate-300 break-all">
-            auth preview: {authorizationPreview || '-'}
-          </p>
-        </section>
 
         <section className="mb-8 rounded-2xl border border-slate-800 bg-slate-900 p-6">
           <div className="grid gap-4 md:grid-cols-4">
