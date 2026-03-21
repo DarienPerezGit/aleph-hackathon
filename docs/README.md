@@ -4,7 +4,9 @@
 
 # Rebyt — Intent-Based Payment Infrastructure
 
-> "Blockchains execute transactions. Rebyt validates outcomes before value moves."
+> Typed intent flows with programmable wallet execution,
+> secured by zero-knowledge proofs and validated by
+> AI consensus via GenLayer.
 
 ## The Problem
 
