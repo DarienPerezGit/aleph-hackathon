@@ -71,6 +71,8 @@ app.post('/intent', async (req, res) => {
   try {
     const { intentHash, intent, signer, setupMode } = req.body || {};
     const amountWei = intent?.amountWei;
+    const deliveryCondition = intent?.condition || '';
+    const evidenceUrl = intent?.evidenceUrl || process.env.GENLAYER_EVIDENCE_URL || 'https://example.com';
 
     if (!intentHash || typeof intentHash !== 'string') {
       return res.status(400).json({ error: 'intentHash is required' });
@@ -117,7 +119,10 @@ app.post('/intent', async (req, res) => {
           updatedAt: Date.now()
         });
 
-        const settlement = await settleIntent(normalizedIntentHash);
+        const settlement = await settleIntent(normalizedIntentHash, {
+          condition: deliveryCondition,
+          evidenceUrl
+        });
         intentRuntime.set(normalizedIntentHash, {
           ...intentRuntime.get(normalizedIntentHash),
           status: settlement.action === 'release' ? 'RELEASED' : 'REFUNDED',

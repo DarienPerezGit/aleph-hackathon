@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { createClient as createGenLayerClient } from 'genlayer-js';
+import { createAccount as createGenLayerAccount, createClient as createGenLayerClient } from 'genlayer-js';
 import { testnetBradbury } from 'genlayer-js/chains';
 import { createPublicClient, createWalletClient, http, parseAbi } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
@@ -22,6 +22,11 @@ if (!privateKey) {
   throw new Error('Missing env var: PRIVATE_KEY (or SOLVER_PRIVATE_KEY fallback)');
 }
 
+const ESCROW_CONTRACT_ADDRESS = process.env.ESCROW_CONTRACT_ADDRESS;
+const GENLAYER_CONTRACT_ADDRESS = process.env.GENLAYER_CONTRACT_ADDRESS;
+const BSC_TESTNET_RPC = process.env.BSC_TESTNET_RPC;
+const DEFAULT_EVIDENCE_URL = process.env.GENLAYER_EVIDENCE_URL ?? '';
+
 const escrowAbi = parseAbi([
   'function release(bytes32 intentHash) external',
   'function refund(bytes32 intentHash) external',
@@ -34,17 +39,18 @@ const account = privateKeyToAccount(privateKey);
 const walletClient = createWalletClient({
   account,
   chain: bscTestnet,
-  transport: http(process.env.BSC_TESTNET_RPC)
+  transport: http(BSC_TESTNET_RPC)
 });
 
 const publicClient = createPublicClient({
   chain: bscTestnet,
-  transport: http(process.env.BSC_TESTNET_RPC)
+  transport: http(BSC_TESTNET_RPC)
 });
 
 const genlayerClient = createGenLayerClient({
   chain: testnetBradbury,
-  endpoint: process.env.GENLAYER_RPC
+  endpoint: process.env.GENLAYER_RPC,
+  account: createGenLayerAccount(privateKey)
 });
 
 function logStep(message, payload = {}) {
@@ -58,54 +64,106 @@ function sleep(ms) {
   });
 }
 
-async function getGenLayerValidation(intentHash) {
+async function getGenLayerValidation(intentHash, condition = '') {
   let lastError;
+  let sawFalse = false;
 
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
-    logStep(`getResult attempt ${attempt}/3...`);
+  for (let attempt = 1; attempt <= 10; attempt += 1) {
+    logStep(`getResult attempt ${attempt}/10...`, { intentHash, condition });
 
     try {
       const rawResult = await genlayerClient.readContract({
-        address: process.env.GENLAYER_CONTRACT_ADDRESS,
+        address: GENLAYER_CONTRACT_ADDRESS,
         functionName: 'getResult',
         args: [intentHash]
       });
 
       if (typeof rawResult === 'boolean') {
-        return rawResult;
+        if (rawResult === true) {
+          return true;
+        }
+        sawFalse = true;
+        if (attempt < 10) {
+          logStep('getResult returned false; waiting for potential final consensus...', {
+            intentHash,
+            condition,
+            attempt
+          });
+          await sleep(2000);
+          continue;
+        }
+        return false;
       }
 
       if (typeof rawResult === 'string') {
         const normalized = rawResult.trim().toLowerCase();
         if (normalized === 'true') return true;
-        if (normalized === 'false') return false;
+        if (normalized === 'false') {
+          sawFalse = true;
+          if (attempt < 10) {
+            logStep('getResult returned "false"; waiting for potential final consensus...', {
+              intentHash,
+              condition,
+              attempt
+            });
+            await sleep(2000);
+            continue;
+          }
+          return false;
+        }
       }
 
       throw new Error(`Unexpected getResult response type: ${JSON.stringify(rawResult)}`);
     } catch (error) {
       lastError = error;
-      if (attempt < 3) {
+      if (attempt < 10) {
         await sleep(2000);
       }
     }
   }
 
-  if (process.env.RELAYER_VALIDATION_RESULT_FALLBACK) {
-    const fallback = process.env.RELAYER_VALIDATION_RESULT_FALLBACK.toLowerCase() === 'true';
-    logStep('Bradbury unreachable, using fallback', {
-      intentHash,
-      fallback,
-      reason: lastError?.message
-    });
-    return fallback;
+  if (sawFalse) {
+    return false;
   }
 
-  throw new Error(`GenLayer getResult failed after 3 attempts: ${lastError?.message ?? 'unknown error'}`);
+  throw new Error(`GenLayer getResult failed after 10 attempts: ${lastError?.message ?? 'unknown error'}`);
 }
 
-export async function settleIntent(intentHash) {
+async function triggerGenLayerValidation(intentHash, condition, evidenceUrl) {
+  if (!condition || typeof condition !== 'string') {
+    throw new Error('Missing delivery condition for GenLayer validate()');
+  }
+
+  if (typeof evidenceUrl !== 'string') {
+    throw new Error('Invalid evidenceUrl for GenLayer validate()');
+  }
+
+  logStep('Submitting validation request to GenLayer', {
+    intentHash,
+    condition,
+    evidenceUrl,
+    contract: GENLAYER_CONTRACT_ADDRESS
+  });
+
+  const validateTxHash = await genlayerClient.writeContract({
+    address: GENLAYER_CONTRACT_ADDRESS,
+    functionName: 'validate',
+    args: [intentHash, condition, evidenceUrl]
+  });
+
+  logStep('GenLayer validate transaction sent', {
+    intentHash,
+    validateTxHash
+  });
+
+  return validateTxHash;
+}
+
+export async function settleIntent(intentHash, validationContext = {}) {
+  const { condition = '', evidenceUrl = DEFAULT_EVIDENCE_URL } = validationContext;
+
   const intent = await publicClient.readContract({
-    address: process.env.ESCROW_CONTRACT_ADDRESS,
+    address: ESCROW_CONTRACT_ADDRESS,
     abi: escrowAbi,
     functionName: 'getIntent',
     args: [intentHash]
@@ -124,13 +182,15 @@ export async function settleIntent(intentHash) {
     };
   }
 
-  logStep('Polling validation result', { intentHash });
-  const result = await getGenLayerValidation(intentHash);
-  logStep('Validation result fetched', { intentHash, result });
+  const validateTxHash = await triggerGenLayerValidation(intentHash, condition, evidenceUrl);
+
+  logStep('Polling validation result', { intentHash, condition, evidenceUrl, validateTxHash });
+  const result = await getGenLayerValidation(intentHash, condition);
+  logStep('Validation result fetched', { intentHash, condition, evidenceUrl, result });
 
   if (state === 1) {
     await walletClient.writeContract({
-      address: process.env.ESCROW_CONTRACT_ADDRESS,
+      address: ESCROW_CONTRACT_ADDRESS,
       abi: escrowAbi,
       functionName: 'markValidating',
       args: [intentHash]
@@ -140,7 +200,7 @@ export async function settleIntent(intentHash) {
   const functionName = result ? 'release' : 'refund';
 
   const txHash = await walletClient.writeContract({
-    address: process.env.ESCROW_CONTRACT_ADDRESS,
+    address: ESCROW_CONTRACT_ADDRESS,
     abi: escrowAbi,
     functionName,
     args: [intentHash]
@@ -163,6 +223,7 @@ export async function settleIntent(intentHash) {
 
   return {
     intentHash,
+    validateTxHash,
     result,
     action: functionName,
     txHash,
