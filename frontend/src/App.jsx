@@ -135,17 +135,23 @@ export default function App() {
   const [sessionPrivateKey, setSessionPrivateKey] = useState('');
   const [isWalletUpgraded, setIsWalletUpgraded] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
 
   const pushLog = (message) => setLogs((prev) => [nowLog(message), ...prev]);
 
   async function setupSessionWallet() {
+    if (!window.ethereum) {
+      pushLog('error: no wallet detected (install MetaMask)');
+      return;
+    }
+    setIsConnecting(true);
     try {
-      if (!window.ethereum) {
-        pushLog('error: no wallet detected (install MetaMask)');
-        return;
+      // Check if already connected first (no popup needed)
+      let accounts = await window.ethereum.request({ method: 'eth_accounts' });
+      if (!accounts || accounts.length === 0) {
+        pushLog('check MetaMask → click the extension icon if popup did not appear');
+        accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
       }
-      pushLog('requesting wallet access...');
-      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
       const selected = accounts[0];
       const generatedPrivateKey = generatePrivateKey();
       const sessionAccount = privateKeyToAccount(generatedPrivateKey);
@@ -157,6 +163,8 @@ export default function App() {
       pushLog(`session_wallet: ${sessionAccount.address}`);
     } catch (error) {
       pushLog(`error: ${error.message}`);
+    } finally {
+      setIsConnecting(false);
     }
   }
 
@@ -359,13 +367,21 @@ export default function App() {
             </div>
             <div className="px-5 py-4">
               {!isWalletUpgraded ? (
-                <button
-                  type="button"
-                  onClick={setupSessionWallet}
-                  className="w-full text-xs font-mono border border-gray-200 py-2.5 hover:border-gray-900 hover:text-gray-900 text-gray-600 transition-colors"
-                >
-                  [ initialize session ]
-                </button>
+                <div>
+                  <button
+                    type="button"
+                    onClick={setupSessionWallet}
+                    disabled={isConnecting}
+                    className="w-full text-xs font-mono border border-gray-200 py-2.5 hover:border-gray-900 hover:text-gray-900 text-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isConnecting ? '[ waiting for MetaMask... ]' : '[ initialize session ]'}
+                  </button>
+                  {isConnecting && (
+                    <p className="text-xs font-mono text-gray-400 mt-2 text-center">
+                      click the MetaMask icon in your browser toolbar ↑
+                    </p>
+                  )}
+                </div>
               ) : (
                 <div className="space-y-3">
                   <div>
