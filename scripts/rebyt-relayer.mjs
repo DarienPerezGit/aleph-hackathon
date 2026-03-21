@@ -103,7 +103,7 @@ async function getGenLayerValidation(intentHash) {
   throw new Error(`GenLayer getResult failed after 3 attempts: ${lastError?.message ?? 'unknown error'}`);
 }
 
-async function settleIntent(intentHash) {
+export async function settleIntent(intentHash) {
   const intent = await publicClient.readContract({
     address: process.env.ESCROW_CONTRACT_ADDRESS,
     abi: escrowAbi,
@@ -170,17 +170,19 @@ async function settleIntent(intentHash) {
   };
 }
 
-const intentHash = process.argv[2];
+if (process.argv[1] && process.argv[1].includes('rebyt-relayer.mjs')) {
+  const intentHash = process.argv[2];
 
-if (!intentHash) {
-  throw new Error('Usage: node scripts/rebyt-relayer.mjs <intentHash>');
+  if (!intentHash) {
+    throw new Error('Usage: node scripts/rebyt-relayer.mjs <intentHash>');
+  }
+
+  settleIntent(intentHash)
+    .then((output) => {
+      logStep('Relayer completed', output);
+    })
+    .catch((error) => {
+      logStep('Relayer failed', { error: error.message });
+      process.exit(1);
+    });
 }
-
-settleIntent(intentHash)
-  .then((output) => {
-    logStep('Relayer completed', output);
-  })
-  .catch((error) => {
-    logStep('Relayer failed', { error: error.message });
-    process.exit(1);
-  });

@@ -1,9 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  createPublicClient,
-  http,
   parseAbi,
-  parseAbiItem,
   parseEther
 } from 'viem';
 import { createWalletClient, custom } from 'viem';
@@ -12,17 +9,12 @@ import { bscTestnet } from 'viem/chains';
 import { signPaymentIntentWithSessionAccount } from './lib/intentSigner';
 
 const escrowAbi = parseAbi([
-  'function fund(bytes32 intentHash, uint256 amount) external payable',
-  'function getIntent(bytes32 intentHash) external view returns ((address recipient,uint256 amount,uint8 state,uint256 fundedAt,uint256 settledAt))'
+  'function fund(bytes32 intentHash, uint256 amount) external payable'
 ]);
-
-const releasedEvent = parseAbiItem('event Released(bytes32 indexed intentHash, address indexed recipient, uint256 amount)');
-const refundedEvent = parseAbiItem('event Refunded(bytes32 indexed intentHash, uint256 amount)');
 
 const ESCROW_CONTRACT_ADDRESS = '0xc065d530eAb19955EedC11BD51920625100B3a6A';
 const GENLAYER_CONTRACT_ADDRESS = '0x023b48B9c8C4805c4c4dAB50247e78d4a082C46E';
 const REBYT_SESSION_ROUTER_ADDRESS = '0xBca0f7A094A5398598A8415270711ae3Dd46A986';
-const BSC_RPC = 'https://data-seed-prebsc-1-s1.binance.org:8545';
 const SOLVER_URL = 'http://localhost:3001/intent';
 
 const initialPipeline = [
@@ -56,15 +48,6 @@ export default function App() {
   const [sessionPrivateKey, setSessionPrivateKey] = useState('');
   const [isWalletUpgraded, setIsWalletUpgraded] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const publicClient = useMemo(
-    () =>
-      createPublicClient({
-        chain: bscTestnet,
-        transport: http(BSC_RPC)
-      }),
-    []
-  );
 
   const pushLog = (message) => setLogs((prev) => [nowLog(message), ...prev]);
 
@@ -167,8 +150,8 @@ export default function App() {
         if (step.key === 'escrow') {
           return {
             ...step,
-            status: 'processing',
-            link: ''
+            status: 'confirmed',
+            link: fundTx ? `https://testnet.bscscan.com/tx/${fundTx}` : ''
           };
         }
         return step;
@@ -182,100 +165,66 @@ export default function App() {
     }
   }
 
-  async function findSettlementTx(hash) {
-    try {
-      const latestBlock = await publicClient.getBlockNumber();
-      const fromBlock = latestBlock > 20000n ? latestBlock - 20000n : 0n;
-
-      const releasedLogs = await publicClient.getLogs({
-        address: ESCROW_CONTRACT_ADDRESS,
-        event: releasedEvent,
-        args: { intentHash: hash },
-        fromBlock,
-        toBlock: latestBlock
-      });
-
-      if (releasedLogs.length > 0) {
-        return releasedLogs[releasedLogs.length - 1].transactionHash;
-      }
-
-      const refundedLogs = await publicClient.getLogs({
-        address: ESCROW_CONTRACT_ADDRESS,
-        event: refundedEvent,
-        args: { intentHash: hash },
-        fromBlock,
-        toBlock: latestBlock
-      });
-
-      if (refundedLogs.length > 0) {
-        return refundedLogs[refundedLogs.length - 1].transactionHash;
-      }
-    } catch {
-      return '';
-    }
-
-    return '';
-  }
-
   useEffect(() => {
     if (!intentHash) return;
 
     const timer = setInterval(async () => {
       try {
-        const data = await publicClient.readContract({
-          address: ESCROW_CONTRACT_ADDRESS,
-          abi: escrowAbi,
-          functionName: 'getIntent',
-          args: [intentHash]
-        });
+        const response = await fetch(`${SOLVER_URL}/${intentHash}/status`);
+        if (!response.ok) {
+          const body = await response.json().catch(() => ({}));
+          throw new Error(body.error || `Status HTTP ${response.status}`);
+        }
 
-        const state = Number(data.state ?? data[2]);
-        let settledTx = settlementTx;
+        const statusData = await response.json();
+        const status = statusData.status;
+        const settlementHash = statusData.settlementTxHash || '';
 
-        if ((state === 3 || state === 4) && !settledTx) {
-          settledTx = await findSettlementTx(intentHash);
-          if (settledTx) {
-            setSettlementTx(settledTx);
-            pushLog(`Settlement transaction detected: ${settledTx}`);
-          }
+        if (settlementHash && settlementHash !== settlementTx) {
+          setSettlementTx(settlementHash);
+          pushLog(`Settlement transaction detected: ${settlementHash}`);
         }
 
         setPipeline((prev) =>
           prev.map((step) => {
             if (step.key === 'escrow') {
-              const status = state >= 1 ? 'confirmed' : step.status;
               return {
                 ...step,
-                status,
-                link: status === 'confirmed' && escrowTx ? `https://testnet.bscscan.com/tx/${escrowTx}` : ''
+                status: escrowTx ? 'confirmed' : step.status,
+                link: escrowTx ? `https://testnet.bscscan.com/tx/${escrowTx}` : ''
               };
             }
             if (step.key === 'validation') {
-              const status = state >= 3 ? 'confirmed' : state === 2 ? 'processing' : step.status;
+              const validationConfirmed = status === 'VALIDATING' || status === 'RELEASED' || status === 'REFUNDED';
               return {
                 ...step,
-                status,
-                link: status === 'confirmed' ? `https://studio.genlayer.com/contract/${GENLAYER_CONTRACT_ADDRESS}` : ''
+                status: validationConfirmed ? 'confirmed' : step.status,
+                link: validationConfirmed ? `https://studio.genlayer.com/contract/${GENLAYER_CONTRACT_ADDRESS}` : ''
               };
             }
             if (step.key === 'settlement') {
-              const status = state === 3 || state === 4 ? 'confirmed' : step.status;
+              const settled = status === 'RELEASED';
               return {
                 ...step,
-                status,
-                link: status === 'confirmed' && settledTx ? `https://testnet.bscscan.com/tx/${settledTx}` : ''
+                status: settled ? 'confirmed' : step.status,
+                link: settled && settlementHash ? `https://testnet.bscscan.com/tx/${settlementHash}` : ''
               };
             }
             return step;
           })
         );
+
+        if (status === 'RELEASED') {
+          clearInterval(timer);
+        }
       } catch (error) {
         pushLog(`Polling error: ${error.message}`);
+        clearInterval(timer);
       }
     }, 3000);
 
     return () => clearInterval(timer);
-  }, [intentHash, escrowTx, settlementTx, publicClient]);
+  }, [intentHash, escrowTx, settlementTx]);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
