@@ -3,30 +3,29 @@ pragma solidity ^0.8.20;
 
 import "forge-std/Script.sol";
 import "../contracts/RebytEscrow.sol";
-import "../contracts/MockZKVerifier.sol";
 
+/// @notice Deploy RebytEscrow without ZK enabled (zkEnabled=false, zkVerifier=address(0)).
+///
+/// Use this for the base escrow deploy. Wire the ZK verifier separately via:
+///   forge script script/DeployVerifier.s.sol --broadcast
+///   forge script script/DeployEscrowWithZK.s.sol --broadcast
+///
+/// The zkEnabled=false default means fund() flows work immediately without proofs.
+/// For a ZK-enabled escrow with the real Groth16 verifier, use DeployEscrowWithZK.s.sol.
 contract DeployRebytEscrow is Script {
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         address relayerAddress = vm.envAddress("SOLVER_ADDRESS");
 
         vm.startBroadcast(deployerPrivateKey);
-
         RebytEscrow escrow = new RebytEscrow(relayerAddress);
-
-        // Deploy MockZKVerifier as the initial ZK verifier.
-        // Replace with the real snarkjs-generated ZKVerifier.sol before enabling zkEnabled.
-        MockZKVerifier mockVerifier = new MockZKVerifier();
-        escrow.setZKVerifier(address(mockVerifier));
-
-        // ZK enforcement is OFF by default — existing fund() flow unaffected.
-        // Flip with: cast send <escrow> "setZKEnabled(bool)" true --private-key $PRIVATE_KEY
-        // escrow.setZKEnabled(true);  // uncomment only when real verifier is deployed
-
         vm.stopBroadcast();
 
-        console.log("RebytEscrow deployed at:  ", address(escrow));
-        console.log("MockZKVerifier deployed at:", address(mockVerifier));
-        console.log("zkEnabled:                 ", escrow.zkEnabled());
+        console.log("RebytEscrow deployed at:", address(escrow));
+        console.log("zkEnabled:              ", escrow.zkEnabled());
+        console.log("zkVerifier:             ", escrow.zkVerifier());
+        console.log("");
+        console.log("To enable ZK, run DeployVerifier.s.sol then DeployEscrowWithZK.s.sol");
     }
 }
+
