@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   parseAbi,
   parseEther
@@ -13,7 +13,6 @@ const escrowAbi = parseAbi([
 ]);
 
 const ESCROW_CONTRACT_ADDRESS = '0xc065d530eAb19955EedC11BD51920625100B3a6A';
-const GENLAYER_CONTRACT_ADDRESS = '0x023b48B9c8C4805c4c4dAB50247e78d4a082C46E';
 const REBYT_SESSION_ROUTER_ADDRESS = '0xBca0f7A094A5398598A8415270711ae3Dd46A986';
 const SOLVER_URL = 'http://localhost:3001/intent';
 
@@ -168,7 +167,19 @@ export default function App() {
   useEffect(() => {
     if (!intentHash) return;
 
+    let consecutiveErrors = 0;
+    let pollAttempts = 0;
+    const maxConsecutiveErrors = 5;
+    const maxPollAttempts = 120;
+
     const timer = setInterval(async () => {
+      pollAttempts += 1;
+      if (pollAttempts > maxPollAttempts) {
+        pushLog('Polling timeout reached. Keeping current status; check explorer links.');
+        clearInterval(timer);
+        return;
+      }
+
       try {
         const response = await fetch(`${SOLVER_URL}/${intentHash}/status`);
         if (!response.ok) {
@@ -176,9 +187,12 @@ export default function App() {
           throw new Error(body.error || `Status HTTP ${response.status}`);
         }
 
+        consecutiveErrors = 0;
+
         const statusData = await response.json();
         const status = statusData.status;
         const settlementHash = statusData.settlementTxHash || '';
+        const links = statusData.links || {};
 
         if (settlementHash && settlementHash !== settlementTx) {
           setSettlementTx(settlementHash);
@@ -195,31 +209,41 @@ export default function App() {
               };
             }
             if (step.key === 'validation') {
-              const validationConfirmed = status === 'VALIDATING' || status === 'RELEASED' || status === 'REFUNDED';
+              const validationProcessing = status === 'VALIDATING';
+              const validationConfirmed = status === 'RELEASED' || status === 'REFUNDED';
               return {
                 ...step,
-                status: validationConfirmed ? 'confirmed' : step.status,
-                link: validationConfirmed ? `https://studio.genlayer.com/contract/${GENLAYER_CONTRACT_ADDRESS}` : ''
+                status: validationProcessing ? 'processing' : (validationConfirmed ? 'confirmed' : step.status),
+                link: links.genlayer || step.link
               };
             }
             if (step.key === 'settlement') {
-              const settled = status === 'RELEASED';
+              const settled = status === 'RELEASED' || status === 'REFUNDED';
               return {
                 ...step,
                 status: settled ? 'confirmed' : step.status,
-                link: settled && settlementHash ? `https://testnet.bscscan.com/tx/${settlementHash}` : ''
+                link: settled ? (links.settlement || (settlementHash ? `https://testnet.bscscan.com/tx/${settlementHash}` : '')) : ''
               };
             }
             return step;
           })
         );
 
-        if (status === 'RELEASED') {
+        if (status === 'RELEASED' || status === 'REFUNDED') {
+          clearInterval(timer);
+        }
+
+        if (statusData.error) {
+          pushLog(`Solver error: ${statusData.error}`);
           clearInterval(timer);
         }
       } catch (error) {
-        pushLog(`Polling error: ${error.message}`);
-        clearInterval(timer);
+        consecutiveErrors += 1;
+        pushLog(`Polling error (${consecutiveErrors}/${maxConsecutiveErrors}): ${error.message}`);
+        if (consecutiveErrors >= maxConsecutiveErrors) {
+          pushLog('Stopping polling after repeated errors.');
+          clearInterval(timer);
+        }
       }
     }, 3000);
 

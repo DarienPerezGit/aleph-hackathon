@@ -25,6 +25,8 @@ if (!privateKey) {
 const ESCROW_CONTRACT_ADDRESS = process.env.ESCROW_CONTRACT_ADDRESS;
 const GENLAYER_CONTRACT_ADDRESS = process.env.GENLAYER_CONTRACT_ADDRESS;
 const BSC_TESTNET_RPC = process.env.BSC_TESTNET_RPC;
+const GENLAYER_RPC = process.env.GENLAYER_RPC || 'https://zksync-os-testnet-genlayer.zksync.dev';
+const GENLAYER_CHAIN_ID = Number(process.env.GENLAYER_CHAIN_ID || 4221);
 const DEFAULT_EVIDENCE_URL = process.env.GENLAYER_EVIDENCE_URL ?? '';
 
 const escrowAbi = parseAbi([
@@ -49,7 +51,9 @@ const publicClient = createPublicClient({
 
 const genlayerClient = createGenLayerClient({
   chain: testnetBradbury,
-  endpoint: process.env.GENLAYER_RPC,
+  rpcUrl: GENLAYER_RPC,
+  endpoint: GENLAYER_RPC,
+  chainId: GENLAYER_CHAIN_ID,
   account: createGenLayerAccount(privateKey)
 });
 

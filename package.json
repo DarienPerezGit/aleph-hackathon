@@ -14,5 +14,8 @@
     "genlayer-js": "^0.23.0",
     "snarkjs": "^0.7.4",
     "viem": "^2.21.56"
+  },
+  "devDependencies": {
+    "circomlib": "^2.0.5"
   }
 }

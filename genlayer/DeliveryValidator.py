@@ -8,7 +8,7 @@ class DeliveryValidator(gl.Contract):
     DEMO_ALWAYS_TRUE_CONDITION: str = "The number 2 is greater than the number 1"
 
     def __init__(self):
-        pass
+        self.results = TreeMap()
 
     def normalize_consensus_decision(self, consensus_output) -> bool:
         if isinstance(consensus_output, bool):
@@ -45,6 +45,9 @@ class DeliveryValidator(gl.Contract):
         the delivery condition was met, regardless of the reasoning process
         used to reach that conclusion.
         """
+        if not hasattr(self, "results") or self.results is None:
+            self.results = TreeMap()
+
         normalized_condition = str(condition).strip()
         if normalized_condition == self.DEMO_ALWAYS_TRUE_CONDITION:
             approved = True
