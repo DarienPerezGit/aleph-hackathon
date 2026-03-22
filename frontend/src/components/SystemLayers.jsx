@@ -15,17 +15,17 @@ const LAYERS = [
   },
   {
     index: '03',
-    title: 'Proof',
-    tech: 'Groth16 / Circom',
+    title: 'Finality',
+    tech: 'Dispute Window',
     description:
-      'A zero-knowledge proof is generated. The circuit verifies Poseidon(recipient, amount, nonce) matches the committed intentHash.',
+      'After consensus, a dispute window opens. Anyone can appeal. No execution happens until the result is finalized — AI is verified, not blindly trusted.',
   },
   {
     index: '04',
     title: 'Execution',
     tech: 'BNB Smart Chain',
     description:
-      'The escrow contract releases or refunds funds. Value moves only after validation and proof requirements are satisfied onchain.',
+      'The escrow contract releases or refunds funds. Value moves only after validation is finalized onchain.',
   },
 ];
 

@@ -14,9 +14,7 @@ function ProofStrip() {
         <span className="w-px h-4 bg-black/10" />
         <span className="text-xs font-mono text-[#666]">Consensus: <span className="text-[#111] font-semibold">4/4</span> validators</span>
         <span className="w-px h-4 bg-black/10" />
-        <span className="text-xs font-mono text-[#666]">Finality: <span className="text-[#111] font-semibold">&lt;2s</span></span>
-        <span className="w-px h-4 bg-black/10" />
-        <span className="text-xs font-mono text-[#666]">Status: <span className="text-emerald-600 font-semibold">ACCEPTED</span></span>
+        <span className="text-xs font-mono text-[#666]">Dispute window: <span className="text-[#111] font-semibold">30 min</span></span>
         <span className="ml-auto">
           <a
             href={`https://testnet.bscscan.com/address/${ESCROW_ADDRESS}`}
