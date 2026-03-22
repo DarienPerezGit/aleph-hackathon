@@ -6,15 +6,14 @@ Intent-based payment infrastructure where users sign what they want, AI validato
 
 ![Rebyt Logo](assets/rebyt_logo_isometric_solo.svg)
 
-![Rebyt Full Architecture Flow](assets/rebyt_full_architecture_sequence.svg)
+![Rebyt Full Architecture Flow](assets/flujo-completo.png)
 
 ## Four Layers
 
 ### 1) Intent Layer
 - User signs a `PaymentIntent` using EIP-712 typed data.
-- Session wallet signs — never sends transactions.
-- No direct wallet interaction required.
-- No wallet interaction required.
+- Signing is offchain (no gas).
+- One wallet interaction is required only at execution step.
 
 ### 2) Escrow Layer
 - Solver deposits funds into `RebytEscrow.sol` on BSC Testnet.
@@ -28,7 +27,7 @@ The Validation Layer evaluates whether a value transfer request should be execut
 
 In the current implementation, this corresponds to evaluating delivery-related conditions. However, the validation model is intentionally generalized: it determines whether a request to move funds is legitimate.
 
-This evaluation is executed on GenLayer Bradbury testnet using Optimistic Democracy consensus (5 validators running LLM-based evaluation).
+This evaluation is executed on GenLayer StudioNet (Bradbury-compatible) using Optimistic Democracy consensus (5 validators running LLM-based evaluation).
 
 The system relies on a developer-defined Equivalence Principle:
 - "Two outputs are equivalent if they both agree on whether the value transfer should be approved or rejected, regardless of reasoning."
@@ -37,18 +36,18 @@ This ensures convergence on a binary decision while allowing flexible reasoning 
 
 #### Finality Model
 
-GenLayer Bradbury uses an optimistic finality model:
+GenLayer StudioNet (Bradbury-compatible) uses an optimistic finality model:
 
 1. **Consensus** — Validators run LLM evaluation → majority agrees on YES or NO
 2. **ACCEPTED** — Result is posted on-chain, marked as accepted
-3. **Dispute Window** — 30-minute window where anyone can appeal the result
+3. **Dispute Window** — simulated instant finality in demo; ~30-minute dispute window in Bradbury production model
 4. **FINALIZED** — No appeals → result becomes permanent and immutable
 
 Settlement only executes **after finality**. The Relayer waits for the result to be finalized before calling `release()` or `refund()` on the escrow contract.
 
 This mirrors optimistic rollups: assume correctness, allow challenge, then finalize. It ensures an explicit trust model where AI is not blindly trusted — there is always a window for human review.
 
-**Demo note**: StudioNet (fast path) is used for demo speed. On Bradbury testnet, the 30-minute dispute window is real.
+**Demo note**: StudioNet fast path is used for demo speed. Production model keeps a ~30-minute dispute window on Bradbury.
 
 This validation pattern generalizes beyond payment settlement.
 
@@ -67,7 +66,7 @@ This positions the Validation Layer as a reusable primitive for secure value tra
 ## Implemented in this submission
 - EIP-712 intent signing (reimplemented from scratch)
 - `RebytEscrow.sol` on BSC Testnet
-- `DeliveryValidator.py` on GenLayer Bradbury
+- `DeliveryValidator.py` on GenLayer StudioNet (Bradbury-compatible)
 - `rebyt-relayer.mjs` connecting both
 - Demo frontend (one page, five status steps: Intent → Escrow → Validation → Finality → Settlement)
 

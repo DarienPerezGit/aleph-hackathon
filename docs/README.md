@@ -48,9 +48,9 @@ Four phases:
 
 | Layer | What it does | Where |
 |-------|-------------|-------|
-| **Intent** | User signs a `PaymentIntent` via EIP-712 — no gas, no wallet popup | Offchain |
-| **Validation** | 5 AI validators evaluate delivery condition → binary YES/NO | GenLayer Bradbury |
-| **Finality** | Result marked ACCEPTED → 30-min dispute window → FINALIZED | GenLayer Bradbury |
+| **Intent** | User signs a `PaymentIntent` via EIP-712 (offchain, no gas). One wallet interaction is required only at execution. | Offchain |
+| **Validation** | 5 AI validators evaluate delivery condition → binary YES/NO | GenLayer StudioNet (Bradbury-compatible) |
+| **Finality** | Result marked ACCEPTED → dispute/finality model enforced before settlement | GenLayer StudioNet (Bradbury-compatible) |
 | **Settlement** | Escrow executes `release()` or `refund()` after finality | BSC Testnet |
 
 The **Relayer** bridges validation → settlement: reads the AI consensus from GenLayer, then calls the appropriate escrow function on BSC.
@@ -61,13 +61,13 @@ The **Relayer** bridges validation → settlement: reads the AI consensus from G
 
 > **We don't blindly trust AI. We give it a dispute window before money moves.**
 
-GenLayer Bradbury uses **Optimistic Democracy** — a consensus mechanism where AI validators propose a result, and that result can be challenged during a finality window.
+GenLayer StudioNet (Bradbury-compatible) uses **Optimistic Democracy** — a consensus mechanism where AI validators propose a result, and that result can be challenged during a finality model.
 
 | Phase | What happens | Duration |
 |-------|-------------|----------|
 | **Consensus** | 5 validators run LLM evaluation → majority agrees | ~seconds (StudioNet) |
 | **ACCEPTED** | Result posted on-chain, marked as accepted | Immediate |
-| **Dispute Window** | Anyone can appeal the result | 30 min (Bradbury) |
+| **Dispute Window** | Demo uses fast finality; production model allows appeals | ~30 min (Bradbury model) |
 | **FINALIZED** | No appeals → result becomes permanent | After window closes |
 | **Settlement** | Relayer reads finalized result → executes on BSC | Immediate |
 
@@ -181,7 +181,7 @@ npm run solver
 
 ---
 
-## Proof — Real Transactions
+## Execution Evidence — Real Transactions
 
 **QA E2E: 3/3 PASSED** (reject → approve → reject)
 
@@ -193,7 +193,6 @@ npm run solver
 | BSC refund | `0xdf72...0190` | [BscScan](https://testnet.bscscan.com/tx/0xdf72daa0b6c1d3a2d17cfbb02fbf8f72f3310f236e1fda8a9e4d4fd3f8ad0190) |
 | BSC release | `0x386d...b9bc` | [BscScan](https://testnet.bscscan.com/tx/0x386dea5bda30cef5a651ef259af24a8bf358afb8cb2f2e9a7a3a6dc6cdd1b9bc) |
 | BSC refund | `0xbe2f...6fa9` | [BscScan](https://testnet.bscscan.com/tx/0xbe2f9e5f2c84ab9d2dbf3f85e5ae08be8c6e1e5a6a15c16ab8c65a0c61f66fa9) |
-| ZK proof verified | `0x1bce...ab3e` | [BscScan](https://testnet.bscscan.com/tx/0x1bce644f6ac296bbd5a75ffa0b783987d8648355bb4dd912d6cbe8970995ab3e) |
 
 All validators reached consensus with status **ACCEPTED / MAJORITY_AGREE**.
 
@@ -213,8 +212,7 @@ This creates explicit onchain evidence on GenLayer for:
 | Contract | Address | Network |
 |----------|---------|---------|
 | **RebytEscrow.sol** | `0x5191Bca416e2De8dD7915bdD55bf625143ABB98C` | BSC Testnet |
-| **Groth16Verifier** | `0x5cBC63B27AF1427096C644DdC66B56cf01006A1e` | BSC Testnet |
-| **DeliveryValidator.py** | `0x619d0b8f1b6C0F09118314c73Cbc45552D38E6BB` | GenLayer Bradbury |
+| **DeliveryValidator.py** | `0x619d0b8f1b6C0F09118314c73Cbc45552D38E6BB` | GenLayer StudioNet (Bradbury-compatible) |
 
 GenExplorer links:
 - Contract: https://explorer-bradbury.genlayer.com/address/0x619d0b8f1b6C0F09118314c73Cbc45552D38E6BB
@@ -223,7 +221,7 @@ GenExplorer links:
 
 ---
 
-## ZK Proof System
+## Optional / Experimental — ZK Proof System (not used in this demo path)
 
 Optional ZK path that verifies intent data integrity **before** escrow accepts funds.
 
@@ -241,8 +239,8 @@ Optional ZK path that verifies intent data integrity **before** escrow accepts f
 | Intent signing | EIP-712 / viem |
 | Smart contracts | Solidity / Foundry |
 | Blockchain | BNB Smart Chain (Testnet, Chain 97) |
-| AI validation | GenLayer Bradbury (Optimistic Democracy) |
-| ZK proofs | Circom + Groth16 + snarkjs |
+| AI validation | GenLayer StudioNet (Bradbury-compatible, Optimistic Democracy) |
+| Optional ZK proofs (experimental) | Circom + Groth16 + snarkjs |
 | Relayer | Node.js |
 | Frontend | React + Vite + Tailwind |
 
@@ -279,7 +277,7 @@ Full report: [BRADBURY-BUG-REPORT.md](BRADBURY-BUG-REPORT.md)
 | **GenLayer** | Intelligent contract using Optimistic Democracy + Equivalence Principle + Finality Window on Bradbury |
 | **Bradbury Special** | Bug report with reproducible issues during validator integration |
 | **PL Genesis** | Full payment lifecycle: intent → escrow → validation → settlement |
-| **BNB Chain** | Deployed on BSC Testnet with ZK verification path |
+| **BNB Chain** | Deployed on BSC Testnet with verifiable escrow settlement |
 
 ---
 
