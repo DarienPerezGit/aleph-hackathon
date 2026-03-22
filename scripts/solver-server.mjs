@@ -132,9 +132,17 @@ app.post('/intent', async (req, res) => {
           updatedAt: Date.now()
         });
 
+        // manualResult: read from env at call time (not module-load time)
+        // so restart is not required when .env changes
+        const envManual = process.env.MANUAL_VALIDATION_RESULT ?? '';
+        const manualResult = envManual
+          ? ((['true','yes','approved','approve','release','1'].includes(envManual.trim().toLowerCase())) ? true : false)
+          : true; // demo default: skip LLM, go straight to anchoring
+
         const settlement = await settleIntent(normalizedIntentHash, {
           condition: deliveryCondition,
-          evidenceUrl
+          evidenceUrl,
+          manualResult
         });
 
         const validateTxHash = normalizeTxHash(settlement.validateTxHash);
