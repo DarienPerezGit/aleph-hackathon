@@ -45,7 +45,7 @@ export default function Demo() {
                 Live execution
               </h1>
               <p className="text-sm font-mono text-[#999]">
-                Intent → Consensus → Settlement
+                Intent → Consensus → Finality → Settlement
               </p>
             </div>
             <span className="text-xs font-mono text-[#bbb]">BSC Testnet · Chain 97</span>

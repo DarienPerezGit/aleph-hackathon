@@ -200,7 +200,7 @@ async function anchorConsensusOnGenLayer({ intentHash, approved, validateTxHash 
     approved,
     anchorTxHash,
     contract: GENLAYER_ANCHOR_CONTRACT_ADDRESS,
-    genExplorerUrl: `https://explorer-bradbury.genlayer.com/transactions/${anchorTxHash}`
+    genExplorerUrl: `https://explorer-bradbury.genlayer.com/tx/${anchorTxHash}`
   });
 
   return anchorTxHash;
@@ -221,7 +221,7 @@ async function anchorFinalityOnGenLayer({ intentHash }) {
     intentHash,
     finalityTxHash,
     contract: GENLAYER_ANCHOR_CONTRACT_ADDRESS,
-    genExplorerUrl: `https://explorer-bradbury.genlayer.com/transactions/${finalityTxHash}`
+    genExplorerUrl: `https://explorer-bradbury.genlayer.com/tx/${finalityTxHash}`
   });
 
   return finalityTxHash;

@@ -29,6 +29,12 @@ function normalizeIntentHash(intentHash) {
   return /^0x[a-fA-F0-9]{64}$/.test(normalized) ? normalized : '';
 }
 
+function normalizeTxHash(txHash) {
+  if (!txHash || typeof txHash !== 'string') return '';
+  const normalized = txHash.startsWith('0x') ? txHash : `0x${txHash}`;
+  return /^0x[a-fA-F0-9]{64}$/.test(normalized) ? normalized : '';
+}
+
 function mapOnchainStatus(stateCode) {
   return intentStateLabels[stateCode] || 'UNKNOWN';
 }
@@ -108,6 +114,7 @@ app.post('/intent', async (req, res) => {
       status: 'FUNDED',
       escrowTxHash: txHash,
       settlementTxHash: '',
+      validateTxHash: '',
       updatedAt: Date.now(),
       error: ''
     });
@@ -124,12 +131,19 @@ app.post('/intent', async (req, res) => {
           condition: deliveryCondition,
           evidenceUrl
         });
+
+        const validateTxHash = normalizeTxHash(settlement.validateTxHash);
+        const settlementTxHash = normalizeTxHash(settlement.txHash);
+        const anchorConsensusTxHash = normalizeTxHash(settlement.anchorConsensusTxHash);
+        const anchorFinalityTxHash = normalizeTxHash(settlement.anchorFinalityTxHash);
+
         intentRuntime.set(normalizedIntentHash, {
           ...intentRuntime.get(normalizedIntentHash),
           status: settlement.action === 'release' ? 'RELEASED' : 'REFUNDED',
-          settlementTxHash: settlement.txHash || '',
-          anchorConsensusTxHash: settlement.anchorConsensusTxHash || '',
-          anchorFinalityTxHash: settlement.anchorFinalityTxHash || '',
+          validateTxHash,
+          settlementTxHash,
+          anchorConsensusTxHash,
+          anchorFinalityTxHash,
           updatedAt: Date.now(),
           error: ''
         });
@@ -164,6 +178,7 @@ app.get('/intent/:hash/status', async (req, res) => {
       status: 'UNKNOWN',
       escrowTxHash: '',
       settlementTxHash: '',
+      validateTxHash: '',
       anchorConsensusTxHash: '',
       anchorFinalityTxHash: '',
       error: ''
@@ -172,20 +187,28 @@ app.get('/intent/:hash/status', async (req, res) => {
     const onchain = await readOnchainIntentStatus(normalizedIntentHash);
     const effectiveStatus = runtime.status === 'VALIDATING' ? 'VALIDATING' : onchain.status;
 
+    const runtimeEscrowTx = normalizeTxHash(runtime.escrowTxHash);
+    const runtimeSettlementTx = normalizeTxHash(runtime.settlementTxHash);
+    const runtimeValidateTx = normalizeTxHash(runtime.validateTxHash);
+    const runtimeConsensusTx = normalizeTxHash(runtime.anchorConsensusTxHash);
+    const runtimeFinalityTx = normalizeTxHash(runtime.anchorFinalityTxHash);
+
     return res.json({
       intentHash: normalizedIntentHash,
       status: effectiveStatus,
       stateCode: onchain.stateCode,
-      escrowTxHash: runtime.escrowTxHash,
-      settlementTxHash: runtime.settlementTxHash,
-      anchorConsensusTxHash: runtime.anchorConsensusTxHash,
-      anchorFinalityTxHash: runtime.anchorFinalityTxHash,
+      escrowTxHash: runtimeEscrowTx,
+      settlementTxHash: runtimeSettlementTx,
+      validateTxHash: runtimeValidateTx,
+      anchorConsensusTxHash: runtimeConsensusTx,
+      anchorFinalityTxHash: runtimeFinalityTx,
       error: runtime.error,
       links: {
-        escrow: runtime.escrowTxHash ? `https://testnet.bscscan.com/tx/${runtime.escrowTxHash}` : '',
-        settlement: runtime.settlementTxHash ? `https://testnet.bscscan.com/tx/${runtime.settlementTxHash}` : '',
-        genlayerConsensus: runtime.anchorConsensusTxHash ? `${GENLAYER_EXPLORER_BASE_URL}/transactions/${runtime.anchorConsensusTxHash}` : '',
-        genlayerFinality: runtime.anchorFinalityTxHash ? `${GENLAYER_EXPLORER_BASE_URL}/transactions/${runtime.anchorFinalityTxHash}` : '',
+        escrow: runtimeEscrowTx ? `https://testnet.bscscan.com/tx/${runtimeEscrowTx}` : '',
+        settlement: runtimeSettlementTx ? `https://testnet.bscscan.com/tx/${runtimeSettlementTx}` : '',
+        genlayerValidation: runtimeValidateTx ? `${GENLAYER_EXPLORER_BASE_URL}/tx/${runtimeValidateTx}` : '',
+        genlayerConsensus: runtimeConsensusTx ? `${GENLAYER_EXPLORER_BASE_URL}/tx/${runtimeConsensusTx}` : '',
+        genlayerFinality: runtimeFinalityTx ? `${GENLAYER_EXPLORER_BASE_URL}/tx/${runtimeFinalityTx}` : '',
         genlayer: process.env.GENLAYER_CONTRACT_ADDRESS
           ? `${GENLAYER_EXPLORER_BASE_URL}/address/${process.env.GENLAYER_CONTRACT_ADDRESS}`
           : ''

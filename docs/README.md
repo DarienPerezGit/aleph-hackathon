@@ -218,7 +218,7 @@ This creates explicit onchain evidence on GenLayer for:
 
 GenExplorer links:
 - Contract: https://explorer-bradbury.genlayer.com/address/0x619d0b8f1b6C0F09118314c73Cbc45552D38E6BB
-- Deploy tx: https://explorer-bradbury.genlayer.com/transactions/0xdc93fec50236e0e41a20b75779dbb73ff60cc17ca37dd69358d173c5b4156c9c
+- Deploy tx: https://explorer-bradbury.genlayer.com/tx/0xdc93fec50236e0e41a20b75779dbb73ff60cc17ca37dd69358d173c5b4156c9c
 - Validators: https://explorer-bradbury.genlayer.com/validators
 
 ---

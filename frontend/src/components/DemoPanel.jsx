@@ -85,6 +85,12 @@ export default function DemoPanel() {
   const [intentHash, setIntentHash] = useState('');
   const [escrowTx, setEscrowTx] = useState('');
   const [settlementTx, setSettlementTx] = useState('');
+  const [genlayerValidationTx, setGenlayerValidationTx] = useState('');
+  const [genlayerConsensusTx, setGenlayerConsensusTx] = useState('');
+  const [genlayerFinalityTx, setGenlayerFinalityTx] = useState('');
+  const [genlayerValidationLink, setGenlayerValidationLink] = useState('');
+  const [genlayerConsensusLink, setGenlayerConsensusLink] = useState('');
+  const [genlayerFinalityLink, setGenlayerFinalityLink] = useState('');
   const [isConnecting, setIsConnecting] = useState(false);
 
   const logRef = useRef(null);
@@ -100,6 +106,12 @@ export default function DemoPanel() {
     setIntentHash('');
     setEscrowTx('');
     setSettlementTx('');
+    setGenlayerValidationTx('');
+    setGenlayerConsensusTx('');
+    setGenlayerFinalityTx('');
+    setGenlayerValidationLink('');
+    setGenlayerConsensusLink('');
+    setGenlayerFinalityLink('');
     setAccount('');
     setSessionWalletAddress('');
     setSessionPrivateKey('');
@@ -229,13 +241,13 @@ export default function DemoPanel() {
             return { ...s, status: 'completed', link: `https://testnet.bscscan.com/tx/${body.txHash}` };
           }
           if (s.key === 'settlement') {
-            return { ...s, status: 'completed', link: body.txHash ? `https://testnet.bscscan.com/tx/${body.txHash}` : '' };
+            return { ...s, status: 'active', link: '' };
           }
           return s;
         })
       );
-      setPhase('completed');
-      pushLog('execution.complete');
+      setPhase('executing');
+      pushLog('execution.submitted');
     } catch (error) {
       pushLog(`error: ${error.message}`);
       setPhase('ready_for_execution');
@@ -251,6 +263,12 @@ export default function DemoPanel() {
     setIntentHash('');
     setEscrowTx('');
     setSettlementTx('');
+    setGenlayerValidationTx('');
+    setGenlayerConsensusTx('');
+    setGenlayerFinalityTx('');
+    setGenlayerValidationLink('');
+    setGenlayerConsensusLink('');
+    setGenlayerFinalityLink('');
     setAccount('');
     setSessionWalletAddress('');
     setSessionPrivateKey('');
@@ -271,6 +289,21 @@ export default function DemoPanel() {
         if (data.settlementTxHash && data.settlementTxHash !== settlementTx) {
           setSettlementTx(data.settlementTxHash);
           pushLog(`settlement_tx: ${data.settlementTxHash}`);
+        }
+        if (data.validateTxHash && data.validateTxHash !== genlayerValidationTx) {
+          setGenlayerValidationTx(data.validateTxHash);
+          setGenlayerValidationLink(data.links?.genlayerValidation || '');
+          pushLog(`genlayer.validation_tx: ${data.validateTxHash}`);
+        }
+        if (data.anchorConsensusTxHash && data.anchorConsensusTxHash !== genlayerConsensusTx) {
+          setGenlayerConsensusTx(data.anchorConsensusTxHash);
+          setGenlayerConsensusLink(data.links?.genlayerConsensus || '');
+          pushLog(`genlayer.consensus_anchored: ${data.anchorConsensusTxHash}`);
+        }
+        if (data.anchorFinalityTxHash && data.anchorFinalityTxHash !== genlayerFinalityTx) {
+          setGenlayerFinalityTx(data.anchorFinalityTxHash);
+          setGenlayerFinalityLink(data.links?.genlayerFinality || '');
+          pushLog(`genlayer.finality_confirmed: ${data.anchorFinalityTxHash}`);
         }
         setPipeline((prev) =>
           prev.map((step) => {
@@ -302,7 +335,7 @@ export default function DemoPanel() {
       }
     }, 3000);
     return () => clearInterval(timer);
-  }, [intentHash, escrowTx, settlementTx]);
+  }, [intentHash, escrowTx, settlementTx, genlayerValidationTx, genlayerConsensusTx, genlayerFinalityTx]);
 
   const isProcessing = ['intent.created', 'validation.started', 'validation.passed', 'proof.generating', 'proof.valid', 'consensus.accepted', 'finality.pending', 'finality.confirmed'].includes(phase);
   const isFinalityPending = phase === 'finality.pending' || phase === 'consensus.accepted';
@@ -410,7 +443,7 @@ export default function DemoPanel() {
                   <p className="text-xs font-mono text-[#999]">session: <span className="text-[#444] break-all">{sessionWalletAddress}</span></p>
                 </div>
               )}
-              {(escrowTx || settlementTx) && (
+              {(escrowTx || settlementTx || genlayerValidationTx || genlayerConsensusTx || genlayerFinalityTx) && (
                 <div className="border border-black/[0.07] rounded-[10px] p-3 space-y-2">
                   <p className="text-xs font-mono text-[#999] uppercase tracking-widest mb-2">On-chain transactions</p>
                   {escrowTx && (
@@ -433,6 +466,39 @@ export default function DemoPanel() {
                     >
                       <span>Settlement</span>
                       <span className="text-[#999]">{settlementTx.slice(0, 10)}...{settlementTx.slice(-6)} ↗</span>
+                    </a>
+                  )}
+                  {genlayerValidationTx && (
+                    <a
+                      href={genlayerValidationLink || `https://explorer-bradbury.genlayer.com/tx/${genlayerValidationTx}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center justify-between text-xs font-mono text-[#555] hover:text-[#111] transition-colors"
+                    >
+                      <span>GenLayer validation</span>
+                      <span className="text-[#999]">{genlayerValidationTx.slice(0, 10)}...{genlayerValidationTx.slice(-6)} ↗</span>
+                    </a>
+                  )}
+                  {genlayerConsensusTx && (
+                    <a
+                      href={genlayerConsensusLink || `https://explorer-bradbury.genlayer.com/tx/${genlayerConsensusTx}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center justify-between text-xs font-mono text-[#555] hover:text-[#111] transition-colors"
+                    >
+                      <span>GenLayer consensus</span>
+                      <span className="text-[#999]">{genlayerConsensusTx.slice(0, 10)}...{genlayerConsensusTx.slice(-6)} ↗</span>
+                    </a>
+                  )}
+                  {genlayerFinalityTx && (
+                    <a
+                      href={genlayerFinalityLink || `https://explorer-bradbury.genlayer.com/tx/${genlayerFinalityTx}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center justify-between text-xs font-mono text-[#555] hover:text-[#111] transition-colors"
+                    >
+                      <span>GenLayer finality</span>
+                      <span className="text-[#999]">{genlayerFinalityTx.slice(0, 10)}...{genlayerFinalityTx.slice(-6)} ↗</span>
                     </a>
                   )}
                   {intentHash && (
