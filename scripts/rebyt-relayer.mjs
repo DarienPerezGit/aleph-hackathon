@@ -86,8 +86,8 @@ async function getGenLayerValidation(intentHash, condition = '') {
   let lastError;
   let sawFalse = false;
 
-  for (let attempt = 1; attempt <= 10; attempt += 1) {
-    logStep(`getResult attempt ${attempt}/10...`, { intentHash, condition });
+  for (let attempt = 1; attempt <= 30; attempt += 1) {
+    logStep(`getResult attempt ${attempt}/30...`, { intentHash, condition });
 
     try {
       const rawResult = await genlayerClient.readContract({
@@ -101,13 +101,13 @@ async function getGenLayerValidation(intentHash, condition = '') {
           return true;
         }
         sawFalse = true;
-        if (attempt < 10) {
+        if (attempt < 30) {
           logStep('getResult returned false; waiting for potential final consensus...', {
             intentHash,
             condition,
             attempt
           });
-          await sleep(2000);
+          await sleep(5000);
           continue;
         }
         return false;
@@ -118,13 +118,13 @@ async function getGenLayerValidation(intentHash, condition = '') {
         if (normalized === 'true') return true;
         if (normalized === 'false') {
           sawFalse = true;
-          if (attempt < 10) {
+          if (attempt < 30) {
             logStep('getResult returned "false"; waiting for potential final consensus...', {
               intentHash,
               condition,
               attempt
             });
-            await sleep(2000);
+            await sleep(5000);
             continue;
           }
           return false;
@@ -134,8 +134,8 @@ async function getGenLayerValidation(intentHash, condition = '') {
       throw new Error(`Unexpected getResult response type: ${JSON.stringify(rawResult)}`);
     } catch (error) {
       lastError = error;
-      if (attempt < 10) {
-        await sleep(2000);
+      if (attempt < 30) {
+        await sleep(5000);
       }
     }
   }
@@ -144,7 +144,7 @@ async function getGenLayerValidation(intentHash, condition = '') {
     return false;
   }
 
-  throw new Error(`GenLayer getResult failed after 10 attempts: ${lastError?.message ?? 'unknown error'}`);
+  throw new Error(`GenLayer getResult failed after 30 attempts: ${lastError?.message ?? 'unknown error'}`);
 }
 
 async function triggerGenLayerValidation(intentHash, condition, evidenceUrl) {

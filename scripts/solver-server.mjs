@@ -14,6 +14,11 @@ if (!privateKey) {
   throw new Error('Missing env var: SOLVER_PRIVATE_KEY (or PRIVATE_KEY)');
 }
 
+if (!process.env.GENLAYER_EVIDENCE_URL && !process.env.MANUAL_VALIDATION_RESULT) {
+  console.warn('[solver] WARNING: GENLAYER_EVIDENCE_URL not set and MANUAL_VALIDATION_RESULT not set.');
+  console.warn('[solver] GenLayer will receive https://example.com as evidence — likely result: REFUND');
+}
+
 const escrowAbi = parseAbi([
   'function fund(bytes32 intentHash, uint256 amount) external payable',
   'function getIntent(bytes32 intentHash) external view returns ((address recipient,uint256 amount,uint8 state,uint256 fundedAt,uint256 settledAt))'
@@ -68,7 +73,7 @@ const app = express();
 app.use(express.json());
 app.use((_, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type');
   next();
 });

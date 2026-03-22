@@ -4,7 +4,7 @@ import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import { signPaymentIntentWithSessionAccount } from '../lib/intentSigner';
 
 const REBYT_SESSION_ROUTER_ADDRESS = '0xBca0f7A094A5398598A8415270711ae3Dd46A986';
-const SOLVER_URL = 'http://localhost:3001/intent';
+const SOLVER_URL = (import.meta.env.VITE_SOLVER_URL ?? 'http://localhost:3001') + '/intent';
 
 const initialPipeline = [
   { key: 'intent',     name: 'Intent',     label: 'EIP-712',           status: 'idle', link: '' },
@@ -119,51 +119,15 @@ export default function DemoPanel() {
 
     setPhase('intent.created');
     setPipeline((p) => p.map((s) => (s.key === 'intent' ? { ...s, status: 'active' } : s)));
-    pushLog('intent.created');
+    pushLog('intent.created — EIP-712 typed data prepared');
     await delay(800);
     setPipeline((p) => p.map((s) => (s.key === 'intent' ? { ...s, status: 'completed' } : s)));
-
+    pushLog('intent.hash computed (EIP-712)');
     await delay(400);
-    setPhase('validation.started');
-    setPipeline((p) => p.map((s) => (s.key === 'escrow' ? { ...s, status: 'active' } : s)));
-    pushLog('validation.started (GenLayer)');
-    await delay(2000);
-    setPipeline((p) => p.map((s) => (s.key === 'escrow' ? { ...s, status: 'completed' } : s)));
-
-    setPhase('validation.passed');
-    setPipeline((p) => p.map((s) => (s.key === 'validation' ? { ...s, status: 'active' } : s)));
-    pushLog('validation.passed');
-    await delay(500);
-
-    setPhase('proof.generating');
-    pushLog('proof.generating (Groth16)');
-    await delay(2500);
-    setPipeline((p) => p.map((s) => (s.key === 'validation' ? { ...s, status: 'completed' } : s)));
-
-    setPhase('proof.valid');
-    pushLog('proof.valid');
-    await delay(500);
-
-    // consensus.accepted — AI verdict posted
-    setPhase('consensus.accepted');
-    setPipeline((p) => p.map((s) => (s.key === 'finality' ? { ...s, status: 'pending' } : s)));
-    pushLog('consensus.accepted — validators: MAJORITY_AGREE');
-    await delay(1200);
-
-    // finality.pending — dispute window
-    setPhase('finality.pending');
-    pushLog('finality.pending — dispute window active (30 min in production)');
-    await delay(2500);
-
-    // finality.confirmed — no appeals
-    setPhase('finality.confirmed');
-    setPipeline((p) => p.map((s) => (s.key === 'finality' ? { ...s, status: 'completed' } : s)));
-    pushLog('finality.confirmed — no appeals, result finalized');
-    await delay(500);
 
     setPhase('ready_for_execution');
-    setPipeline((p) => p.map((s) => (s.key === 'settlement' ? { ...s, status: 'active' } : s)));
-    pushLog('ready_for_execution');
+    setPipeline((p) => p.map((s) => (s.key === 'escrow' ? { ...s, status: 'active' } : s)));
+    pushLog('ready_for_execution — connect wallet to fund escrow');
   }
 
   async function connectAndExecute() {
@@ -240,14 +204,14 @@ export default function DemoPanel() {
           if (s.key === 'escrow' && body.txHash) {
             return { ...s, status: 'completed', link: `https://testnet.bscscan.com/tx/${body.txHash}` };
           }
-          if (s.key === 'settlement') {
-            return { ...s, status: 'active', link: '' };
+          if (s.key === 'validation') {
+            return { ...s, status: 'active' };
           }
           return s;
         })
       );
       setPhase('executing');
-      pushLog('execution.submitted');
+      pushLog('validation.started — GenLayer AI validators evaluating');
     } catch (error) {
       pushLog(`error: ${error.message}`);
       setPhase('ready_for_execution');
@@ -310,12 +274,28 @@ export default function DemoPanel() {
             if (step.key === 'escrow' && escrowTx) {
               return { ...step, status: 'completed', link: `https://testnet.bscscan.com/tx/${escrowTx}` };
             }
-            if (step.key === 'settlement' && (data.status === 'RELEASED' || data.status === 'REFUNDED')) {
-              return {
-                ...step,
-                status: 'completed',
-                link: data.links?.settlement || (data.settlementTxHash ? `https://testnet.bscscan.com/tx/${data.settlementTxHash}` : step.link),
-              };
+            if (step.key === 'validation' && data.validateTxHash) {
+              return { ...step, status: 'completed', link: data.links?.genlayerValidation || '' };
+            }
+            if (step.key === 'finality') {
+              if (data.anchorFinalityTxHash) {
+                return { ...step, status: 'completed', link: data.links?.genlayerFinality || '' };
+              }
+              if (data.validateTxHash) {
+                return { ...step, status: 'pending' };
+              }
+            }
+            if (step.key === 'settlement') {
+              if (data.status === 'RELEASED' || data.status === 'REFUNDED') {
+                return {
+                  ...step,
+                  status: 'completed',
+                  link: data.links?.settlement || (data.settlementTxHash ? `https://testnet.bscscan.com/tx/${data.settlementTxHash}` : step.link),
+                };
+              }
+              if (data.anchorFinalityTxHash) {
+                return { ...step, status: 'active' };
+              }
             }
             return step;
           })
@@ -337,8 +317,8 @@ export default function DemoPanel() {
     return () => clearInterval(timer);
   }, [intentHash, escrowTx, settlementTx, genlayerValidationTx, genlayerConsensusTx, genlayerFinalityTx]);
 
-  const isProcessing = ['intent.created', 'validation.started', 'validation.passed', 'proof.generating', 'proof.valid', 'consensus.accepted', 'finality.pending', 'finality.confirmed'].includes(phase);
-  const isFinalityPending = phase === 'finality.pending' || phase === 'consensus.accepted';
+  const isProcessing = phase === 'intent.created';
+  const isFinalityPending = false;
   const isReadyForExecution = phase === 'ready_for_execution';
   const isExecuting = phase === 'executing';
   const isCompleted = phase === 'completed';
@@ -415,8 +395,8 @@ export default function DemoPanel() {
           {isReadyForExecution && (
             <div className="mt-7 space-y-3">
               <div className="border border-emerald-200 rounded-[10px] p-3 bg-emerald-50/60">
-                <p className="text-xs font-mono text-emerald-700">✓ consensus · ✓ proof valid · ✓ finalized</p>
-                <p className="text-xs font-mono text-[#999] mt-1">connect wallet to execute settlement</p>
+                <p className="text-xs font-mono text-emerald-700">✓ intent signed · ✓ conditions set</p>
+                <p className="text-xs font-mono text-[#999] mt-1">connect wallet to fund escrow and start validation</p>
               </div>
               <button
                 type="button"
