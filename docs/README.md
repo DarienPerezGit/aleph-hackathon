@@ -25,7 +25,7 @@ Rebyt is intent-based payment infrastructure where users sign what they want, AI
 
 ## Architecture
 
-![Rebyt Full Architecture Flow](assets/rebyt_full_architecture_sequence.svg)
+![Rebyt Full Architecture Flow](assets/flujo-completo.png)
 
 ```
 User ──sign──▶ Intent ──fund──▶ Escrow (BSC)
