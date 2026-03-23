@@ -1,4 +1,4 @@
-# Rebyt — Demo Video Script (3:00)
+# Apolo — Demo Video Script (3:00)
 
 > Word-by-word narration. Short sentences optimized for subtitles.
 > Visual cues in **[BRACKETS]**.
@@ -7,7 +7,7 @@
 
 ## 0:00 – 0:20 → HOOK
 
-**[BLACK SCREEN → Rebyt logo fades in]**
+**[BLACK SCREEN → Apolo logo fades in]**
 
 > "Today, AI can decide whether money moves."
 
@@ -47,9 +47,9 @@
 
 ## 0:50 – 1:20 → SOLUTION
 
-**[Show: Rebyt architecture diagram — 4 layers: Intent → Escrow → Validation → Settlement]**
+**[Show: Apolo architecture diagram — 4 layers: Intent → Escrow → Validation → Settlement]**
 
-> "Rebyt is an AI-validated escrow protocol with a built-in dispute window."
+> "Apolo is an AI-validated escrow protocol with a built-in dispute window."
 
 > "Here's how it works in one sentence:"
 
@@ -70,7 +70,7 @@
 
 ## 1:20 – 2:20 → LIVE DEMO
 
-**[Show: Rebyt frontend UI]**
+**[Show: Apolo frontend UI]**
 
 > "Let me show you this working end to end. This is not a mock. These are real transactions on real testnets."
 
@@ -162,15 +162,15 @@
 
 ## 2:50 – 3:00 → CLOSING
 
-**[Show: Rebyt logo centered, dark background]**
+**[Show: Apolo logo centered, dark background]**
 
 > "Blockchains execute transactions."
 
 **[Pause]**
 
-> "Rebyt validates outcomes — before value moves."
+> "Apolo validates outcomes — before value moves."
 
-**[Text overlay fades in: "rebyt.xyz — Intent-based payment infrastructure"]**
+**[Text overlay fades in: "apolo.xyz — Intent-based payment infrastructure"]**
 
 **[Hold 2 seconds → fade to black]**
 

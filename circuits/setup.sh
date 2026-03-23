@@ -21,7 +21,7 @@ CIRCUITS_DIR="circuits"
 CONTRACTS_DIR="contracts"
 PTAU_FILE="$CIRCUITS_DIR/pot12_final.ptau"
 
-echo "=== Rebyt ZK Setup ==="
+echo "=== Apolo ZK Setup ==="
 
 # ── 0. Check dependencies ──────────────────────────────────────────────────
 if ! command -v circom &>/dev/null; then
@@ -75,11 +75,11 @@ snarkjs groth16 setup \
   "$CIRCUITS_DIR/intent_hash_0.zkey"
 
 echo "[4/6] Contributing to zkey (deterministic for demo)..."
-echo "rebyt-hackathon-zk-entropy-$(date +%s)" | \
+echo "apolo-hackathon-zk-entropy-$(date +%s)" | \
   snarkjs zkey contribute \
     "$CIRCUITS_DIR/intent_hash_0.zkey" \
     "$CIRCUITS_DIR/intent_hash_final.zkey" \
-    --name="Rebyt Demo Contribution" -v
+    --name="Apolo Demo Contribution" -v
 
 rm -f "$CIRCUITS_DIR/intent_hash_0.zkey"
 

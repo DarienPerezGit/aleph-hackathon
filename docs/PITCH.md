@@ -1,33 +1,34 @@
-# Rebyt Pitch Narrative
+# Apolo Pitch Narrative
 
 ## Opening
-"In crypto, whenever someone explains payments,
-they use the coffee example.
-I was going to do the same. Why not?
-But I thought MercadoLibre was more interesting —
-the biggest unicorn born in Argentina."
+"Every day, developers ship APIs for clients who pay on trust — not on proof.
+
+Hire a dev. Pay only when their API is live."
 
 ## Problem
-"Today paying with crypto means choosing a network,
-paying gas fees, exposing your wallet.
-For the average user — that's too much.
-Almost the entire market still lives on Web2.
-Not because the technology isn't ready —
-because nobody removed the friction."
+"Today paying for developer work means choosing on trust.
+The client pays before verifying the work is live.
+The dev waits weeks for manual approval.
+Disputes are slow, expensive, and opaque.
+
+The real scale: $50M in Aave — smart contracts managing billions —
+and we still can't verify a simple HTTP endpoint before releasing funds."
 
 ## Solution
-"Rebyt is the architecture that can change that.
-The user signs an intent. A Solver deposits funds into escrow.
-GenLayer validators evaluate whether delivery conditions were met using AI consensus.
-But we don't blindly trust AI. There is a dispute window — like an optimistic rollup.
-Only after finality, funds release automatically. End to end."
+"Apolo is SLA-verified escrow infrastructure.
+The client defines a condition: 'Pay $500 when api.myproject.com returns HTTP 200'.
+Funds are locked. The dev ships.
+GenLayer AI validators check the endpoint.
+If it works — dev gets paid automatically.
+If not — client gets refunded.
+No disputes. No trust. Just verified outcomes."
 
 ## Key framing
-- Not a better transaction -> a payment primitive
+- Not a better transaction -> an SLA payment primitive
 - Not a wallet experience -> a session-based interaction model
-- Not a CAPTCHA -> an intelligent validation layer
+- Not a CAPTCHA -> an intelligent SLA verification layer
 - Not blind AI trust -> optimistic verification with dispute window
-- EIP-7702 enables execution. Rebyt defines the lifecycle.
+- EIP-7702 enables execution. Apolo defines the lifecycle.
 
 ## Sponsor callouts
 - BNB Chain: "Built on BSC. EIP-7702 upgrade path on BNB Pascal."

@@ -3,9 +3,9 @@
 from genlayer import *
 
 
-class DeliveryValidator(gl.Contract):
+class SLAValidator(gl.Contract):
     """
-    Intent Validation Layer for Apolo.
+    SLA Validation Layer for Apolo.
 
     Architecture:
     - Normalization layer: All LLM outputs are collapsed to strict YES/NO
@@ -22,7 +22,7 @@ class DeliveryValidator(gl.Contract):
     - getResult() is readable by anyone; used by relayer to gate settlement.
     """
 
-    results: TreeMap[str, bool]
+    sla_results: TreeMap[str, bool]
     recordsSeen: TreeMap[str, bool]
     consensusStatus: TreeMap[str, str]
     finalityStatus: TreeMap[str, str]
@@ -57,11 +57,17 @@ class DeliveryValidator(gl.Contract):
     def _evaluate(self, condition: str, evidenceUrl: str) -> str:
         def nondet_llm() -> str:
             evidence = gl.nondet.web.render(evidenceUrl, mode="text")
-            prompt = (
-                "Given this evidence, was the following condition met? "
-                f"{condition}? Answer only YES or NO.\n\n"
-                f"Evidence:\n{evidence}"
-            )
+            prompt = f"""
+You are verifying an SLA condition for a payment escrow.
+
+Endpoint tested: {evidenceUrl}
+HTTP Response received: {evidence}
+
+Condition to verify: {condition}
+
+Based on the HTTP response above, was the condition met?
+Answer only YES or NO.
+"""
             answer = gl.nondet.exec_prompt(prompt)
             return self._normalize(answer)
 
@@ -69,8 +75,8 @@ class DeliveryValidator(gl.Contract):
         # consensus holds when normalized outputs agree.
         result = gl.eq_principle.prompt_non_comparative(
             nondet_llm,
-            task="Determine if a delivery condition was met based on web evidence",
-            criteria="The result must be YES or NO indicating whether the condition was satisfied",
+            task="Determine if an SLA condition was met based on web evidence",
+            criteria="Two validator outputs are equivalent if they both agree on whether the SLA condition was met (YES or NO), regardless of reasoning.",
         )
         return str(result).strip().upper()
 
@@ -91,22 +97,22 @@ class DeliveryValidator(gl.Contract):
     @gl.public.write
     def validate(self, intentHash: str, condition: str, evidenceUrl: str) -> bool:
         """
-        Evaluate condition against evidence and store binary result.
+        Evaluate SLA condition against evidence and store binary result.
 
         Two validator outputs are equivalent if they both agree on whether
-        the delivery condition was met, regardless of reasoning path.
+        the SLA condition was met, regardless of reasoning path.
 
         Args:
             intentHash:  EIP-712 keccak256 of the payment intent
-            condition:   Natural language delivery condition
-            evidenceUrl: URL to publicly verifiable evidence
+            condition:   Natural language SLA condition
+            evidenceUrl: URL to publicly verifiable evidence (API endpoint)
 
         Returns:
-            True if condition is satisfied, False otherwise.
+            True if SLA condition is satisfied, False otherwise.
         """
         raw_result = self._evaluate(condition, evidenceUrl)
         approved = raw_result == "YES"
-        self.results[intentHash] = approved
+        self.sla_results[intentHash] = approved
         self.recordsSeen[intentHash] = True
         self.consensusStatus[intentHash] = "ACCEPTED"
         self.finalityStatus[intentHash] = "PENDING"
@@ -131,7 +137,7 @@ class DeliveryValidator(gl.Contract):
         Stores explicit onchain evidence for consensus phase after validation.
         Called by relayer with deterministic values.
         """
-        self.results[intentHash] = bool(approved)
+        self.sla_results[intentHash] = bool(approved)
         self.recordsSeen[intentHash] = True
         self.consensusStatus[intentHash] = self._normalize_consensus_status(consensusStatus)
         self.finalityStatus[intentHash] = self._normalize_finality_status(finalityStatus)
@@ -157,8 +163,8 @@ class DeliveryValidator(gl.Contract):
 
     @gl.public.view
     def getResult(self, intentHash: str) -> bool:
-        """Read stored validation result. Returns False if not yet validated."""
-        return self.results.get(intentHash, False)
+        """Read stored SLA validation result. Returns False if not yet validated."""
+        return self.sla_results.get(intentHash, False)
 
     @gl.public.view
     def getRecord(self, intentHash: str) -> tuple[bool, bool, str, str, bigint, bigint, str]:
@@ -168,7 +174,7 @@ class DeliveryValidator(gl.Contract):
         """
         return (
             self.recordsSeen.get(intentHash, False),
-            self.results.get(intentHash, False),
+            self.sla_results.get(intentHash, False),
             self.consensusStatus.get(intentHash, "PENDING"),
             self.finalityStatus.get(intentHash, "PENDING"),
             self.observedAt.get(intentHash, bigint(0)),

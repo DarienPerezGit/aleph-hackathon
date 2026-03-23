@@ -1,19 +1,19 @@
-# Rebyt — Claude Code Context
+# Apolo — Claude Code Context
 
 ## Project
-Intent-based payment infrastructure where users sign what they 
-want, AI validators evaluate delivery conditions, and escrow 
-settles automatically.
+Apolo is SLA-verified escrow infrastructure where 
+clients define conditions ('pay when API returns 200'), 
+AI validators verify them, and escrow settles automatically.
+Tagline: Deploy. Get paid when it works.
 
 ## One-liner
-"Blockchains execute transactions. Rebyt validates outcomes 
-before value moves."
+"Deploy. Get paid when it works."
 
 ## Architecture
 Four layers — implement in this order:
-1. DeliveryValidator.py (GenLayer Bradbury)
-2. RebytEscrow.sol (BSC Testnet)
-3. rebyt-relayer.mjs (connects both)
+1. SLAValidator.py (GenLayer Bradbury)
+2. ApoloEscrow.sol (BSC Testnet)
+3. apolo-relayer.mjs (connects both)
 4. frontend/index.html (demo UI)
 
 ## Reference repos (read, never copy)
@@ -36,9 +36,9 @@ Located at c:/Users/PC/Proyectos/
 
 ## Tech stack
 - viem (EIP-712 signing)
-- Solidity + Foundry (RebytEscrow.sol on BSC Testnet)
-- GenLayer Python SDK (DeliveryValidator.py on Bradbury)
-- Node.js (rebyt-relayer.mjs)
+- Solidity + Foundry (ApoloEscrow.sol on BSC Testnet)
+- GenLayer Python SDK (SLAValidator.py on Bradbury)
+- Node.js (apolo-relayer.mjs)
 - React (frontend demo)
 - BSC Testnet Chain ID: 97
 - GenLayer Bradbury testnet
@@ -59,13 +59,13 @@ Demo: 3-minute video in English
 - BNB Chain: BSC Testnet deployment
 
 ## Definition of done
-1. RebytEscrow.sol deployed on BSC Testnet — address recorded
+1. ApoloEscrow.sol deployed on BSC Testnet — address recorded
 2. DeliveryValidator.py deployed on GenLayer Bradbury — address recorded
-3. rebyt-relayer.mjs triggers release end-to-end
+3. apolo-relayer.mjs triggers release end-to-end
 4. Frontend shows 4 steps with real explorer links
 5. 3-minute video recorded in English
 6. DoraHacks + DevSpot submissions complete
 
 ## Agents workflow
 See .github/agents/ for orchestration workflow.
-Start with: .github/prompts/run-rebyt-hackathon-workflow.prompt.md
+Start with: .github/prompts/run-apolo-hackathon-workflow.prompt.md

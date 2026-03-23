@@ -149,14 +149,14 @@ async function getGenLayerValidation(intentHash, condition = '') {
 
 async function triggerGenLayerValidation(intentHash, condition, evidenceUrl) {
   if (!condition || typeof condition !== 'string') {
-    throw new Error('Missing delivery condition for GenLayer validate()');
+    throw new Error('Missing SLA condition for GenLayer validate()');
   }
 
   if (typeof evidenceUrl !== 'string') {
     throw new Error('Invalid evidenceUrl for GenLayer validate()');
   }
 
-  logStep('Submitting validation request to GenLayer', {
+  logStep('Submitting SLA verification request to GenLayer', {
     intentHash,
     condition,
     evidenceUrl,
@@ -271,9 +271,9 @@ export async function settleIntent(intentHash, validationContext = {}) {
     });
   } else {
     validateTxHash = await triggerGenLayerValidation(intentHash, condition, evidenceUrl);
-    logStep('Polling validation result', { intentHash, condition, evidenceUrl, validateTxHash });
+    logStep('Polling SLA verification result', { intentHash, condition, evidenceUrl, validateTxHash });
     result = await getGenLayerValidation(intentHash, condition);
-    logStep('Validation result fetched', { intentHash, condition, evidenceUrl, result });
+    logStep('SLA condition verified', { intentHash, condition, evidenceUrl, result });
   }
 
   try {
@@ -316,7 +316,7 @@ export async function settleIntent(intentHash, validationContext = {}) {
     args: [intentHash]
   });
 
-  logStep('Settlement transaction sent', {
+  logStep(`SLA payment ${functionName === 'release' ? 'release' : 'refund'} transaction sent`, {
     intentHash,
     action: functionName,
     txHash,
@@ -324,7 +324,7 @@ export async function settleIntent(intentHash, validationContext = {}) {
   });
 
   const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
-  logStep('Settlement transaction confirmed', {
+  logStep('SLA payment settlement confirmed', {
     intentHash,
     action: functionName,
     blockNumber: receipt.blockNumber.toString(),
@@ -343,12 +343,12 @@ export async function settleIntent(intentHash, validationContext = {}) {
   };
 }
 
-if (process.argv[1] && process.argv[1].includes('rebyt-relayer.mjs')) {
+if (process.argv[1] && process.argv[1].includes('apolo-relayer.mjs')) {
   const intentHash = process.argv[2];
   const cliDecision = process.argv[3];
 
   if (!intentHash) {
-    throw new Error('Usage: node scripts/rebyt-relayer.mjs <intentHash> [approved|rejected]');
+    throw new Error('Usage: node scripts/apolo-relayer.mjs <SLAIntentHash> [approved|rejected]');
   }
 
   const manualResultFromCli = cliDecision ? parseManualValidationResult(cliDecision) : null;

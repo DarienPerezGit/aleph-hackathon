@@ -1,6 +1,6 @@
 ---
-name: Rebyt Validator
-description: "Use when reviewing Rebyt code against constraints: architecture compliance, no direct copy from pre-hackathon/reference repos, and hackathon track requirements."
+name: Apolo Validator
+description: "Use when reviewing Apolo code against constraints: architecture compliance, no direct copy from pre-hackathon/reference repos, and hackathon track requirements."
 tools: [read, search]
 user-invocable: false
 ---
@@ -11,13 +11,13 @@ Validate that implementation is compliant, fresh, and aligned with track goals.
 
 ## Validation Checklist
 - Architecture alignment with docs/ARCHITECTURE.md
-- Rebyt scope alignment with docs/README.md
+- Apolo scope alignment with docs/README.md
 - Required env/config compatibility with .env.example
 - No obvious copy from external repos (structure/name-by-name cloning, identical large blocks)
 - Meets required component goals:
-  - RebytEscrow.sol on BSC Testnet
+  - ApoloEscrow.sol on BSC Testnet
   - DeliveryValidator.py on GenLayer Bradbury
-  - rebyt-relayer.mjs connecting both
+  - apolo-relayer.mjs connecting both
 
 ## Decision Rules
 - PASS: no blocking issues found.

@@ -1,7 +1,7 @@
-# Rebyt Demo (Winning Flow)
+# Apolo Demo (Winning Flow)
 
 ## Core message
-Rebyt validates real-world outcomes before value moves.
+Apolo validates real-world outcomes before value moves.
 
 ## 3-minute flow
 
@@ -10,7 +10,7 @@ Rebyt validates real-world outcomes before value moves.
 - Show intent hash and signature in UI/logs
 
 ### 2) Escrow funded on BSC
-- Solver funds `RebytEscrow.sol`
+- Solver funds `ApoloEscrow.sol`
 - Show BscScan tx link
 
 ### 3) GenLayer consensus (Studio UI)
@@ -23,9 +23,9 @@ Rebyt validates real-world outcomes before value moves.
 
 ### 4) Settlement on BSC (Plan B relayer)
 - If decision is YES:
-  - `node scripts/rebyt-relayer.mjs <intentHash> approved`
+  - `node scripts/apolo-relayer.mjs <intentHash> approved`
 - If decision is NO:
-  - `node scripts/rebyt-relayer.mjs <intentHash> rejected`
+  - `node scripts/apolo-relayer.mjs <intentHash> rejected`
 - Show final BscScan tx (`release` or `refund`)
 
 ## Positioning line for judges
@@ -33,7 +33,7 @@ Rebyt validates real-world outcomes before value moves.
 - "When consensus API routing is unavailable, we preserve reliability with deterministic settlement execution mode."
 
 ## Reliability
-Rebyt is designed to handle infrastructure limitations gracefully.
+Apolo is designed to handle infrastructure limitations gracefully.
 
 If AI consensus is unavailable (for example, validator assignment issues in StudioNet API),
 the system falls back to a deterministic execution layer via relayer.

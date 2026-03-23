@@ -11,7 +11,7 @@ export default function Demo() {
       <nav className="px-8 py-6 flex items-center justify-between border-b border-black/[0.06]">
         <div className="flex items-center gap-6">
           <Link to="/" className="text-sm font-bold tracking-[0.25em] uppercase text-[#111] hover:text-[#444] transition-colors">
-            Rebyt
+            Apolo
           </Link>
           <span className="w-px h-4 bg-black/10" />
           <span className="text-xs font-mono text-[#999]">Live execution</span>
@@ -59,7 +59,7 @@ export default function Demo() {
       <footer className="border-t border-black/[0.06] py-8 px-6">
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <span className="text-xs font-mono text-[#bbb]">
-            Rebyt Protocol · BSC Testnet · GenLayer Bradbury
+            Apolo Protocol · BSC Testnet · GenLayer Bradbury
           </span>
           <a
             href={`https://testnet.bscscan.com/address/${ESCROW_ADDRESS}`}

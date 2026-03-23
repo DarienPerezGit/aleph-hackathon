@@ -1,7 +1,7 @@
 # BRADBURY BUG REPORT
 
 ## Project Context
-Rebyt is an intent-based payment escrow integrated across:
+Apolo is an intent-based payment escrow integrated across:
 - BSC Testnet escrow settlement
 - GenLayer Bradbury validation layer
 - Node relayer bridge

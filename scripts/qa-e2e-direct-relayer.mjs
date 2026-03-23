@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 import { createWalletClient, createPublicClient, http, parseAbi } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { bscTestnet } from 'viem/chains';
-import { settleIntent } from './rebyt-relayer.mjs';
+import { settleIntent } from './apolo-relayer.mjs';
 
 const privateKey = process.env.SOLVER_PRIVATE_KEY || process.env.PRIVATE_KEY;
 if (!privateKey) {

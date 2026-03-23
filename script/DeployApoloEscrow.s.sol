@@ -2,9 +2,9 @@
 pragma solidity ^0.8.20;
 
 import "forge-std/Script.sol";
-import "../contracts/RebytEscrow.sol";
+import "../contracts/ApoloEscrow.sol";
 
-/// @notice Deploy RebytEscrow without ZK enabled (zkEnabled=false, zkVerifier=address(0)).
+/// @notice Deploy ApoloEscrow without ZK enabled (zkEnabled=false, zkVerifier=address(0)).
 ///
 /// Use this for the base escrow deploy. Wire the ZK verifier separately via:
 ///   forge script script/DeployVerifier.s.sol --broadcast
@@ -12,16 +12,16 @@ import "../contracts/RebytEscrow.sol";
 ///
 /// The zkEnabled=false default means fund() flows work immediately without proofs.
 /// For a ZK-enabled escrow with the real Groth16 verifier, use DeployEscrowWithZK.s.sol.
-contract DeployRebytEscrow is Script {
+contract DeployApoloEscrow is Script {
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         address relayerAddress = vm.envAddress("SOLVER_ADDRESS");
 
         vm.startBroadcast(deployerPrivateKey);
-        RebytEscrow escrow = new RebytEscrow(relayerAddress);
+        ApoloEscrow escrow = new ApoloEscrow(relayerAddress);
         vm.stopBroadcast();
 
-        console.log("RebytEscrow deployed at:", address(escrow));
+        console.log("ApoloEscrow deployed at:", address(escrow));
         console.log("zkEnabled:              ", escrow.zkEnabled());
         console.log("zkVerifier:             ", escrow.zkVerifier());
         console.log("");

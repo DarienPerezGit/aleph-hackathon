@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A Groth16 ZK proof layer added to Rebyt's escrow. The solver proves:
+A Groth16 ZK proof layer added to Apolo's escrow. The solver proves:
 
 ```
 Poseidon(recipient, amount, nonce) == zkHash
@@ -71,7 +71,7 @@ forge build
 ```
 
 All four contracts must compile:
-- `RebytEscrow.sol`
+- `ApoloEscrow.sol`
 - `IZKVerifier.sol`
 - `MockZKVerifier.sol`
 - `ZKVerifier.sol` (after step 1)
@@ -100,14 +100,14 @@ The script sanity-checks that `publicSignals[0] === zkHash` before outputting.
 ## Step 4: Deploy Contracts
 
 ```bash
-forge script script/DeployRebytEscrow.s.sol \
+forge script script/DeployApoloEscrow.s.sol \
   --rpc-url $BSC_TESTNET_RPC \
   --broadcast \
   --verify
 ```
 
 This deploys:
-1. `RebytEscrow` with `zkEnabled = false` (backward-compatible mode)
+1. `ApoloEscrow` with `zkEnabled = false` (backward-compatible mode)
 2. `MockZKVerifier` wired as the initial verifier
 
 Update `ESCROW_CONTRACT_ADDRESS` in your `.env` and in `scripts/solver-server.mjs`.

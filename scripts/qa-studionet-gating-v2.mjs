@@ -168,7 +168,7 @@ async function runTest(name, condition, evidenceUrl, expectedOutcome) {
 
 async function main() {
   log('╔══════════════════════════════════════════════════════════════╗');
-  log('║  Rebyt StudioNet Gating Test v2 (with waitForReceipt)      ║');
+  log('║  Apolo StudioNet Gating Test v2 (with waitForReceipt)      ║');
   log('╚══════════════════════════════════════════════════════════════╝');
   log(`GenLayer RPC:       ${GL_RPC}`);
   log(`GenLayer Contract:  ${GL_CONTRACT}`);

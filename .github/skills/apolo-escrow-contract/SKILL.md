@@ -1,14 +1,14 @@
 ---
-name: rebyt-escrow-contract
-description: 'Implement or review RebytEscrow.sol on BSC Testnet. Use when building escrow state machine, settlement functions, and intentHash-linked funds flow.'
+name: apolo-escrow-contract
+description: 'Implement or review ApoloEscrow.sol on BSC Testnet. Use when building escrow state machine, settlement functions, and intentHash-linked funds flow.'
 argument-hint: 'State transitions + required methods + funding/release policy'
 user-invocable: true
 ---
 
-# Rebyt Escrow Contract
+# Apolo Escrow Contract
 
 ## When to Use
-- Create `contracts/RebytEscrow.sol` from zero.
+- Create `contracts/ApoloEscrow.sol` from zero.
 - Validate escrow state machine and transitions.
 - Align contract behavior with validator/relayer integration.
 

@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 
 import "./IZKVerifier.sol";
 
-contract RebytEscrow {
+contract ApoloEscrow {
     enum IntentState {
         PENDING,
         FUNDED,

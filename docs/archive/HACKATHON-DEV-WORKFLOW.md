@@ -1,4 +1,4 @@
-# Rebyt Hackathon Dev Workflow (Multi-Agent Gate)
+# Apolo Hackathon Dev Workflow (Multi-Agent Gate)
 
 This workflow adds a practical orchestrator gate for development during the hackathon:
 
@@ -10,17 +10,17 @@ This workflow adds a practical orchestrator gate for development during the hack
 
 ## Files Added
 
-- `.github/agents/rebyt-orchestrator.agent.md`
-- `.github/agents/rebyt-coder.agent.md`
-- `.github/agents/rebyt-validator.agent.md`
-- `.github/agents/rebyt-tester.agent.md`
-- `.github/agents/rebyt-merger.agent.md`
-- `.github/prompts/run-rebyt-hackathon-workflow.prompt.md`
+- `.github/agents/apolo-orchestrator.agent.md`
+- `.github/agents/apolo-coder.agent.md`
+- `.github/agents/apolo-validator.agent.md`
+- `.github/agents/apolo-tester.agent.md`
+- `.github/agents/apolo-merger.agent.md`
+- `.github/prompts/run-apolo-hackathon-workflow.prompt.md`
 
 ## How to Run in VS Code
 
 1. Open Chat and type `/`.
-2. Select **Run Rebyt Hackathon Workflow**.
+2. Select **Run Apolo Hackathon Workflow**.
 3. Paste objective + external reference paths.
 4. Let the orchestrator run the loop until `ACCEPTED`.
 
@@ -35,10 +35,10 @@ Read these reference files first:
 - C:/Users/PC/Proyectos/refs/conditional-payment-cross-border-trade/contracts/FxBenchmarkOracle.py
 - C:/Users/PC/Proyectos/refs/conditional-payment-cross-border-trade/scripts/fx-settlement-relayer.mjs
 
-Then adapt them for Rebyt with fresh implementation only:
-- contracts/RebytEscrow.sol on BSC Testnet
+Then adapt them for Apolo with fresh implementation only:
+- contracts/ApoloEscrow.sol on BSC Testnet
 - genlayer/DeliveryValidator.py on GenLayer Bradbury
-- scripts/rebyt-relayer.mjs connecting both
+- scripts/apolo-relayer.mjs connecting both
 
 No copy from pre-hackathon. Keep architecture exactly as documented.
 ```

@@ -1,9 +1,9 @@
 {
-  "name": "rebyt",
+  "name": "apolo",
   "private": true,
   "type": "module",
   "scripts": {
-    "relayer": "node scripts/rebyt-relayer.mjs",
+    "relayer": "node scripts/apolo-relayer.mjs",
     "solver": "node scripts/solver-server.mjs",
     "generate-proof": "node scripts/generate-proof.mjs"
   },

@@ -3,15 +3,14 @@ import { parseEther } from 'viem';
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import { signPaymentIntentWithSessionAccount } from '../lib/intentSigner';
 
-const REBYT_SESSION_ROUTER_ADDRESS = '0xBca0f7A094A5398598A8415270711ae3Dd46A986';
+const APOLO_SESSION_ROUTER_ADDRESS = '0xBca0f7A094A5398598A8415270711ae3Dd46A986';
 const SOLVER_URL = (import.meta.env.VITE_SOLVER_URL ?? 'http://localhost:3001') + '/intent';
 
 const initialPipeline = [
-  { key: 'intent',     name: 'Intent',     label: 'EIP-712',           status: 'idle', link: '' },
-  { key: 'escrow',     name: 'Escrow',     label: 'BSC Testnet',       status: 'idle', link: '' },
-  { key: 'validation', name: 'Validation', label: 'GenLayer Bradbury', status: 'idle', link: '' },
-  { key: 'finality',   name: 'Finality',   label: 'Dispute Window',    status: 'idle', link: '' },
-  { key: 'settlement', name: 'Settlement', label: 'BSC Testnet',       status: 'idle', link: '' },
+  { key: 'intent',     name: 'Intent signed',    label: 'Offchain',          status: 'idle', link: '' },
+  { key: 'escrow',     name: 'Escrow funded',    label: 'BSC Testnet',       status: 'idle', link: '' },
+  { key: 'validation', name: 'API verified',     label: 'GenLayer Bradbury', status: 'idle', link: '' },
+  { key: 'settlement', name: 'Payment released', label: 'BSC Testnet',       status: 'idle', link: '' },
 ];
 
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -76,10 +75,20 @@ function PipelineTrace({ pipeline }) {
   );
 }
 
+const SLA_CONDITIONS = [
+  { value: 'Returns HTTP 200', label: 'Returns HTTP 200' },
+  { value: 'Returns valid JSON', label: 'Returns valid JSON' },
+  { value: 'Responds under 1000ms', label: 'Responds under 1000ms' },
+  { value: 'custom', label: 'Custom condition...' },
+];
+
 export default function DemoPanel() {
   const [recipient, setRecipient] = useState('0xa2e036eD6f43baC9c67B6B098E8B006365b01464');
   const [amount, setAmount] = useState('0.0001');
-  const [condition, setCondition] = useState('Delivery confirmed for order #TEST-001');
+  const [endpointUrl, setEndpointUrl] = useState('https://httpbin.org/get');
+  const [conditionType, setConditionType] = useState('Returns HTTP 200');
+  const [customCondition, setCustomCondition] = useState('');
+  const condition = conditionType === 'custom' ? customCondition : `${endpointUrl} ${conditionType}`;
 
   const [phase, setPhase] = useState('idle');
   const [pipeline, setPipeline] = useState(initialPipeline);
@@ -192,7 +201,7 @@ export default function DemoPanel() {
           },
           setupMode: 'fallback-session-wallet',
           mainWallet: selected,
-          routerAddress: REBYT_SESSION_ROUTER_ADDRESS,
+          routerAddress: APOLO_SESSION_ROUTER_ADDRESS,
         }),
       });
 
@@ -217,7 +226,7 @@ export default function DemoPanel() {
         })
       );
       setPhase('executing');
-      pushLog('validation.started — GenLayer AI validators evaluating');
+      pushLog('validation.started — GenLayer AI validators verifying SLA condition');
     } catch (error) {
       pushLog(`error: ${error.message}`);
       setPhase('ready_for_execution');
@@ -356,12 +365,12 @@ export default function DemoPanel() {
           style={{ boxShadow: '0 10px 30px rgba(0,0,0,0.05)' }}
         >
           <div className="flex items-center justify-between mb-7">
-            <span className="text-xs font-mono text-[#999] uppercase tracking-widest">Payment Intent</span>
+            <span className="text-xs font-mono text-[#999] uppercase tracking-widest">SLA Intent</span>
             <span className="text-xs font-mono text-[#bbb]">EIP-712</span>
           </div>
           <form onSubmit={createIntent} className="space-y-5">
             <div>
-              <label className="block text-xs font-mono text-[#999] mb-1.5">recipient</label>
+              <label className="block text-xs font-mono text-[#999] mb-1.5">dev_wallet_address</label>
               <input
                 className="w-full text-xs font-mono bg-transparent border-b border-black/10 pb-1.5 focus:border-[#111] focus:outline-none transition-colors text-[#333] disabled:opacity-40"
                 value={recipient}
@@ -383,22 +392,46 @@ export default function DemoPanel() {
               />
             </div>
             <div>
-              <label className="block text-xs font-mono text-[#999] mb-1.5">condition</label>
-              <textarea
-                rows={2}
-                className="w-full text-xs font-mono bg-transparent border-b border-black/10 pb-1.5 focus:border-[#111] focus:outline-none transition-colors resize-none text-[#333] disabled:opacity-40"
-                value={condition}
-                onChange={(e) => setCondition(e.target.value)}
+              <label className="block text-xs font-mono text-[#999] mb-1.5">api_endpoint</label>
+              <input
+                className="w-full text-xs font-mono bg-transparent border-b border-black/10 pb-1.5 focus:border-[#111] focus:outline-none transition-colors text-[#333] disabled:opacity-40"
+                value={endpointUrl}
+                onChange={(e) => setEndpointUrl(e.target.value)}
+                placeholder="https://httpbin.org/get"
                 disabled={formLocked}
                 required
               />
+            </div>
+            <div>
+              <label className="block text-xs font-mono text-[#999] mb-1.5">success_condition</label>
+              <select
+                className="w-full text-xs font-mono bg-transparent border-b border-black/10 pb-1.5 focus:border-[#111] focus:outline-none transition-colors text-[#333] disabled:opacity-40"
+                value={conditionType}
+                onChange={(e) => setConditionType(e.target.value)}
+                disabled={formLocked}
+              >
+                {SLA_CONDITIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+              {conditionType === 'custom' && (
+                <textarea
+                  rows={2}
+                  className="w-full text-xs font-mono bg-transparent border-b border-black/10 pb-1.5 focus:border-[#111] focus:outline-none transition-colors resize-none text-[#333] disabled:opacity-40 mt-2"
+                  value={customCondition}
+                  onChange={(e) => setCustomCondition(e.target.value)}
+                  placeholder="Describe the success condition..."
+                  disabled={formLocked}
+                  required
+                />
+              )}
             </div>
             <button
               type="submit"
               disabled={formLocked}
               className="w-full text-sm font-mono border border-black/10 py-3 rounded-[10px] hover:border-[#111] hover:bg-[#111] hover:text-white text-[#555] transition-all disabled:opacity-30 disabled:cursor-not-allowed"
             >
-              {isFinalityPending ? '[ pending finality... ]' : isProcessing ? '[ processing... ]' : '[ create intent ]'}
+              {isFinalityPending ? '[ pending finality... ]' : isProcessing ? '[ processing... ]' : '[ create sla escrow ]'}
             </button>
           </form>
 

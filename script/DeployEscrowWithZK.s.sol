@@ -2,9 +2,9 @@
 pragma solidity ^0.8.20;
 
 import "forge-std/Script.sol";
-import "../contracts/RebytEscrow.sol";
+import "../contracts/ApoloEscrow.sol";
 
-/// @notice Deploy RebytEscrow wired to the real Groth16 verifier, with zkEnabled=true.
+/// @notice Deploy ApoloEscrow wired to the real Groth16 verifier, with zkEnabled=true.
 ///
 /// PREREQUISITES (in order):
 ///   1. bash circuits/setup.sh          → generates real ZKVerifier.sol artifact
@@ -34,7 +34,7 @@ contract DeployEscrowWithZK is Script {
 
         vm.startBroadcast(deployerPrivateKey);
 
-        RebytEscrow escrow = new RebytEscrow(relayerAddress);
+        ApoloEscrow escrow = new ApoloEscrow(relayerAddress);
 
         // Wire the REAL Groth16 verifier (not MockZKVerifier)
         escrow.setZKVerifier(verifierAddress);
@@ -44,7 +44,7 @@ contract DeployEscrowWithZK is Script {
 
         vm.stopBroadcast();
 
-        console.log("=== RebytEscrow deployed with ZK enabled ===");
+        console.log("=== ApoloEscrow deployed with ZK enabled ===");
         console.log("Escrow:         ", address(escrow));
         console.log("ZK Verifier:    ", verifierAddress);
         console.log("zkEnabled:      ", escrow.zkEnabled());

@@ -1,7 +1,7 @@
 /**
  * scripts/generate-proof.mjs
  *
- * Generate a Groth16 ZK proof for the Rebyt intent_hash circuit.
+ * Generate a Groth16 ZK proof for the Apolo intent_hash circuit.
  *
  * Usage:
  *   node scripts/generate-proof.mjs <recipient_hex> <amount_wei> <nonce>
@@ -51,7 +51,7 @@ const recipientField = BigInt(recipientHex);
 const amountField = BigInt(amountArg);
 const nonceField  = BigInt(nonceArg);
 
-console.log('\n=== Rebyt ZK Proof Generator ===\n');
+console.log('\n=== Apolo ZK Proof Generator ===\n');
 console.log('Inputs:');
 console.log('  recipient:', recipientArg, `(field: ${recipientField})`);
 console.log('  amount:   ', amountArg,    `(field: ${amountField})`);

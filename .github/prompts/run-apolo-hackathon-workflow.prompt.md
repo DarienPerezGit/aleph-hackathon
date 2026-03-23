@@ -1,10 +1,10 @@
 ---
-name: Run Rebyt Hackathon Workflow
-description: "Run orchestrated hackathon workflow (coder → validator → tester → merger) for Rebyt with strict constraints."
-agent: Rebyt Orchestrator
+name: Run Apolo Hackathon Workflow
+description: "Run orchestrated hackathon workflow (coder → validator → tester → merger) for Apolo with strict constraints."
+agent: Apolo Orchestrator
 argument-hint: "Paste objective and reference repository paths"
 ---
-Use the Rebyt Orchestrator workflow for this task.
+Use the Apolo Orchestrator workflow for this task.
 
 ## Mandatory Context
 Read first:
@@ -20,11 +20,11 @@ Then read these reference files (provided by user paths):
 
 ## Mandatory Constraints
 - Fresh implementation only. No copy from pre-hackathon or references.
-- Keep architecture exactly as documented in Rebyt docs.
+- Keep architecture exactly as documented in Apolo docs.
 - Build in this order:
   1) DeliveryValidator.py
-  2) RebytEscrow.sol
-  3) rebyt-relayer.mjs
+  2) ApoloEscrow.sol
+  3) apolo-relayer.mjs
   4) frontend
 
 ## Required Acceptance

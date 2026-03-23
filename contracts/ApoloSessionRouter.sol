@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-contract RebytSessionRouter {
+contract ApoloSessionRouter {
     address public authorizedSessionKey;
     uint256 public maxSpendAmount;
     uint256 public expiresAt;

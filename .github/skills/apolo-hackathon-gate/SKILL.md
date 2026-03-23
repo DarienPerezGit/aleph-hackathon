@@ -1,11 +1,11 @@
 ---
-name: rebyt-hackathon-gate
-description: 'Run a final compliance gate for Rebyt hackathon delivery. Use before demo/submission to verify constraints, track requirements, and definition of done evidence.'
+name: apolo-hackathon-gate
+description: 'Run a final compliance gate for Apolo hackathon delivery. Use before demo/submission to verify constraints, track requirements, and definition of done evidence.'
 argument-hint: 'Current status + deployed addresses + pending blockers'
 user-invocable: true
 ---
 
-# Rebyt Hackathon Gate
+# Apolo Hackathon Gate
 
 ## When to Use
 - Before recording final demo.
@@ -26,8 +26,8 @@ Read first:
 3. No overclaiming on GenLayer validation guarantees.
 4. Required components present:
    - `genlayer/DeliveryValidator.py`
-   - `contracts/RebytEscrow.sol`
-   - `scripts/rebyt-relayer.mjs`
+   - `contracts/ApoloEscrow.sol`
+   - `scripts/apolo-relayer.mjs`
 5. Definition of done evidence collected (addresses, tx links, demo proof).
 
 ## Output Format

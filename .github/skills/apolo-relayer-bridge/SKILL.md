@@ -1,14 +1,14 @@
 ---
-name: rebyt-relayer-bridge
-description: 'Build rebyt-relayer.mjs that connects GenLayer validation outcome with RebytEscrow settlement on BSC Testnet. Use for release/refund execution flows.'
+name: apolo-relayer-bridge
+description: 'Build apolo-relayer.mjs that connects GenLayer validation outcome with ApoloEscrow settlement on BSC Testnet. Use for release/refund execution flows.'
 argument-hint: 'Input sources + mapping rules + settlement action'
 user-invocable: true
 ---
 
-# Rebyt Relayer Bridge
+# Apolo Relayer Bridge
 
 ## When to Use
-- Implement `scripts/rebyt-relayer.mjs`.
+- Implement `scripts/apolo-relayer.mjs`.
 - Wire validator output to escrow release/refund actions.
 - Add reliability checks for cross-layer settlement execution.
 

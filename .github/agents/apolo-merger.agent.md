@@ -1,5 +1,5 @@
 ---
-name: Rebyt Merger
+name: Apolo Merger
 description: "Use when deciding if code can be accepted after validator and tester results; applies merge gate policy and prepares final handoff summary."
 tools: [read, search, edit]
 user-invocable: false

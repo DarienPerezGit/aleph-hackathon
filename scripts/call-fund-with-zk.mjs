@@ -1,7 +1,7 @@
 /**
  * scripts/call-fund-with-zk.mjs
  *
- * Calls fundWithZK() on the deployed RebytEscrow using a pre-generated proof.
+ * Calls fundWithZK() on the deployed ApoloEscrow using a pre-generated proof.
  * For the demo: generates a fresh proof then submits it on-chain.
  *
  * Usage:
@@ -42,7 +42,7 @@ if (!ESCROW_ADDRESS || !PRIVATE_KEY || !RPC_URL) {
   process.exit(1);
 }
 
-console.log('=== Rebyt fundWithZK() Demo ===\n');
+console.log('=== Apolo fundWithZK() Demo ===\n');
 console.log('Escrow:  ', ESCROW_ADDRESS);
 console.log('RPC:     ', RPC_URL);
 

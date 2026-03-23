@@ -85,7 +85,7 @@ export default function Landing() {
 
         {/* Nav */}
         <nav className="relative z-10 px-8 py-6 flex items-center justify-between">
-          <span className="text-sm font-bold tracking-[0.25em] uppercase text-[#111]">Rebyt</span>
+          <span className="text-sm font-bold tracking-[0.25em] uppercase text-[#111]">Apolo</span>
           <div className="flex items-center gap-5">
             <span className="hidden md:inline text-xs font-mono text-[#999]">BSC Testnet · GenLayer Bradbury</span>
             <span className="w-[7px] h-[7px] rounded-full bg-emerald-500 status-pulse" />
@@ -160,7 +160,7 @@ export default function Landing() {
       <footer className="border-t border-black/[0.06] py-8 px-6">
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <span className="text-xs font-mono text-[#bbb]">
-            Rebyt Protocol · BSC Testnet · GenLayer Bradbury
+            Apolo Protocol · BSC Testnet · GenLayer Bradbury
           </span>
           <div className="flex items-center gap-6">
             <a

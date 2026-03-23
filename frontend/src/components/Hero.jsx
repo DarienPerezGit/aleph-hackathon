@@ -35,11 +35,11 @@ function NodeNetwork() {
     >
       <defs>
         <style>{`
-          @keyframes rebyt-node-pulse {
+          @keyframes apolo-node-pulse {
             0%, 100% { opacity: 0.12; }
             50% { opacity: 0.45; }
           }
-          @keyframes rebyt-line-fade {
+          @keyframes apolo-line-fade {
             0%, 100% { opacity: 0.05; }
             50% { opacity: 0.18; }
           }
@@ -55,7 +55,7 @@ function NodeNetwork() {
           stroke="#111"
           strokeWidth="0.75"
           style={{
-            animation: `rebyt-line-fade ${4 + (i % 4) * 0.5}s ease-in-out infinite`,
+            animation: `apolo-line-fade ${4 + (i % 4) * 0.5}s ease-in-out infinite`,
             animationDelay: `${(i * 0.25) % 3}s`,
           }}
         />
@@ -68,7 +68,7 @@ function NodeNetwork() {
           r="3.5"
           fill="#111"
           style={{
-            animation: `rebyt-node-pulse 3.5s ease-in-out infinite`,
+            animation: `apolo-node-pulse 3.5s ease-in-out infinite`,
             animationDelay: `${node.delay}s`,
           }}
         />
@@ -88,7 +88,7 @@ export default function Hero() {
           Protocol v1 &nbsp;·&nbsp; BSC Testnet &nbsp;·&nbsp; GenLayer Bradbury
         </p>
         <h1 className="text-8xl md:text-[10rem] font-black tracking-tight text-gray-900 leading-none mb-8">
-          Rebyt
+          Apolo
         </h1>
         <p className="text-xl md:text-2xl text-gray-500 max-w-md leading-relaxed">
           Intent execution, validated before it happens.

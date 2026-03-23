@@ -1,6 +1,6 @@
 ---
-name: Rebyt Tester
-description: "Use when running build/test verification for Rebyt changes and reporting pass/fail with concrete command output."
+name: Apolo Tester
+description: "Use when running build/test verification for Apolo changes and reporting pass/fail with concrete command output."
 tools: [read, search, execute]
 user-invocable: false
 ---

@@ -1,20 +1,20 @@
-# Rebyt Custom Skills
+# Apolo Custom Skills
 
-These skills are tailored for the Rebyt hackathon workflow.
+These skills are tailored for the Apolo hackathon workflow.
 Use them as slash commands in chat (`/`).
 
 ## Skills
 
-- `rebyt-delivery-validator`  
+- `apolo-delivery-validator`  
   Build/refine `genlayer/DeliveryValidator.py` with binary approve/reject logic.
 
-- `rebyt-escrow-contract`  
-  Implement/review `contracts/RebytEscrow.sol` with intentHash-linked escrow flow.
+- `apolo-escrow-contract`  
+  Implement/review `contracts/ApoloEscrow.sol` with intentHash-linked escrow flow.
 
-- `rebyt-relayer-bridge`  
-  Build `scripts/rebyt-relayer.mjs` to map validation decision into release/refund.
+- `apolo-relayer-bridge`  
+  Build `scripts/apolo-relayer.mjs` to map validation decision into release/refund.
 
-- `rebyt-hackathon-gate`  
+- `apolo-hackathon-gate`  
   Run final compliance check against constraints, tracks, and definition of done.
 
 ## Notes
