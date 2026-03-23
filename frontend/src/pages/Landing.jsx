@@ -12,7 +12,7 @@ function ProofStrip() {
           <span className="text-xs font-mono font-medium text-[#111] uppercase tracking-wider">Live</span>
         </div>
         <span className="w-px h-4 bg-black/10" />
-        <span className="text-xs font-mono text-[#666]">Consensus: <span className="text-[#111] font-semibold">4/4</span> validators</span>
+        <span className="text-xs font-mono text-[#666]">Proof-of-outcome: <span className="text-[#111] font-semibold">4/4</span> validators</span>
         <span className="w-px h-4 bg-black/10" />
         <span className="text-xs font-mono text-[#666]">Dispute window: <span className="text-[#111] font-semibold">30 min</span></span>
         <span className="ml-auto">
@@ -34,18 +34,18 @@ function ProofStrip() {
 const MODULES = [
   {
     index: '01',
-    label: 'Intent',
-    body: "Users express outcomes.\nNot transactions.",
+    label: 'Define',
+    body: "Client sets a condition.\n'Pay when my API returns 200.'",
   },
   {
     index: '02',
-    label: 'Consensus',
-    body: 'AI validators agree\non reality.',
+    label: 'Verify',
+    body: 'AI validators check\nthe real endpoint.',
   },
   {
     index: '03',
-    label: 'Settlement',
-    body: 'Funds move when\ntruth is verified.',
+    label: 'Settle',
+    body: "We don't replace your stack\n— we guarantee the result.",
   },
 ];
 
@@ -96,15 +96,15 @@ export default function Landing() {
         <div className="relative z-10 flex-1 flex items-center px-8 md:px-16 lg:px-24">
           <div className="max-w-3xl">
             <p className="text-xs font-mono text-[#999] uppercase tracking-widest mb-6">
-              SLA-verified escrow
+              Proof-of-outcome
             </p>
 
             <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-[5.5rem] font-extrabold tracking-[-0.035em] leading-[0.95] text-[#111] mb-7">
-              Deploy. Get paid<br />when it works.
+              Ship an API.<br />Get paid when<br />it responds.
             </h1>
 
             <p className="text-lg md:text-xl text-[#555] max-w-lg leading-relaxed mb-14">
-              SLA-verified escrow for developers. Ship your API, get paid automatically when it's live.
+              Merging code is not the same as shipping working software.
             </p>
 
             <div className="flex flex-wrap items-center gap-4">
@@ -113,7 +113,7 @@ export default function Landing() {
                 className="group inline-flex items-center gap-2.5 bg-[#111] text-white px-7 py-3 text-sm font-semibold tracking-wide rounded-[12px] transition-all hover:bg-[#222] card-hover"
               >
                 <span className="text-[13px] transition-transform group-hover:translate-x-0.5">→</span>
-                Execute intent
+                Try it live
               </Link>
               <a
                 href={`https://testnet.bscscan.com/address/${ESCROW_ADDRESS}`}
