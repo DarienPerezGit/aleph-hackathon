@@ -87,6 +87,12 @@ export default function Landing() {
         <nav className="relative z-10 px-8 py-6 flex items-center justify-between">
           <span className="text-sm font-bold tracking-[0.25em] uppercase text-[#111]">Apolo</span>
           <div className="flex items-center gap-5">
+            <Link
+              to="/demo"
+              className="hidden sm:inline text-xs font-mono text-[#999] hover:text-[#444] transition-colors"
+            >
+              Try Demo →
+            </Link>
             <span className="hidden md:inline text-xs font-mono text-[#999]">BSC Testnet · GenLayer Bradbury</span>
             <span className="w-[7px] h-[7px] rounded-full bg-emerald-500 status-pulse" />
           </div>
