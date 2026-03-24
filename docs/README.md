@@ -1,157 +1,160 @@
-# Apolo Protocol: The Settlement Layer for Software 3.0
+<!-- markdownlint-disable MD013 MD034 MD060 -->
 
-"The future of software lies in AI agents acting as a 'universal smart glue' between APIs." — Andrej Karpathy.
+# Apolo Protocol
 
-But smart glue has no bank account. Apolo is the financial infrastructure that the Agentic Economy needs to flourish.
+**Automated SLA verification and instant payments for developers.**
 
-We don't just test code; we ship on-chain assertions. Apolo allows anyone to define a success condition, verify it through GenLayer's Intelligent Consensus, and settle payments automatically on BNB Chain.
+Apolo resuelve el problema de pagar por promesas convirtiendo APIs en contratos financieros.
 
-Truth is programmable.
+```text
+Client (Set Condition)
+        |
+        v
+BNB Chain (Lock)
+        |
+        v
+GenLayer (Verify)
+        |
+        v
+BNB Chain (Release)
+```
 
-> "Hire a dev. Pay only when their API is live."
+Karpathy lo resume en una línea útil para mercado: AI agents son “smart glue” entre APIs. Apolo agrega lo que falta para producción: settlement verificable.
 
-## The Problem
+## What is Apolo?
 
-Developers ship APIs for clients every day.
-Payment always happens on trust � not on proof.
+Un cliente define una condición de entrega (ej. “pagar cuando la API responda HTTP 200”).
+Apolo bloquea fondos en escrow, valida la condición en GenLayer y libera/reembolsa en BNB Chain según el resultado.
 
-Today:
-- Clients pay before verifying the work is live
-- Devs wait weeks for manual approval
-- Disputes are slow, expensive, and opaque
-
-Result: money moves before truth is known.
-
-## The Solution
-
-Apolo introduces SLA-verified escrow powered by AI consensus.
-
-A client defines a condition:
-"Pay $500 when api.myproject.com returns HTTP 200"
-
-Funds are locked. The dev ships.
-GenLayer AI validators verify the endpoint.
-If it works ? dev gets paid automatically.
-If not ? client gets refunded.
-
-Less manual dispute overhead. Outcome-first settlement.
-
-V1 trust model: the Solver/Relayer is a trusted offchain component that funds escrow, submits validation requests, and executes settlement after observed consensus/finality.
+**V1 trust model:** el Solver/Relayer es un componente offchain confiable que financia escrow, solicita validación y ejecuta settlement después del resultado observado.
 
 ## How it works
 
-1. **SLA Intent** � Client signs an EIP-712 intent defining
-   the endpoint URL and success condition
-2. **Escrow** � ApoloEscrow.sol locks funds on BNB Chain
-3. **Verification** � SLAValidator.py on GenLayer Bradbury
-   fetches the endpoint and reaches AI consensus
-4. **ZK Proof** � Solver proves intent integrity onchain
-   via Groth16 proof before funds are accepted
-5. **Settlement** � apolo-relayer.mjs releases or refunds
-   based on validator outcome
+### Product Architecture
 
-## Sequence (Happy Path)
+| Component | Chain | Description |
+|---|---|---|
+| SLA Intent (EIP-712) | Offchain | El cliente firma condición + endpoint sin gas. |
+| ApoloEscrow.sol | BSC Testnet (97) | Bloquea fondos y expone `release()` / `refund()` por intent. |
+| SLAValidator.py | GenLayer Bradbury | Evalúa evidencia del endpoint y devuelve decisión binaria. |
+| apolo-relayer.mjs | Offchain + BSC Testnet | Lee resultado de validación y ejecuta settlement onchain. |
+| Frontend (React/Vite) | Offchain UI | Flujo demo de 4 pasos con links a explorers. |
 
-Client -> Apolo Frontend: Sign SLA Intent (EIP-712)
-Apolo Frontend -> Solver: Submit intent + condition + verification URL
-Solver -> ApoloEscrow (BSC): Fund escrow
-Solver -> SLAValidator (GenLayer): Request validation
-SLAValidator -> Verification URL: Fetch endpoint response
-GenLayer validators -> SLAValidator: Optimistic Democracy consensus (YES/NO)
-Solver/Relayer -> SLAValidator: Anchor consensus + finality metadata
-Relayer -> ApoloEscrow (BSC): release() if YES, refund() if NO
-ApoloEscrow -> BscScan: Settlement proof onchain
+### Runtime Sequence
 
-## Architecture Diagram
+| Step | Component | Result |
+|---|---|---|
+| 1 | Client + Frontend | Firma de intent con condición SLA. |
+| 2 | Solver + Escrow | Fondos bloqueados en BSC Testnet. |
+| 3 | GenLayer Validator | Verificación del endpoint y decisión approve/reject. |
+| 4 | Relayer + Escrow | `release()` si cumple, `refund()` si no cumple. |
 
-```mermaid
-flowchart LR
-   A[Client Condition\n"Returns HTTP 200"] --> B[Apolo Frontend\nIntent Signing EIP-712]
-   B --> C[Execution Layer\nApolo Relayer / Solver]
-   C --> D[Settlement Layer\nApoloEscrow.sol on BSC]
-   C --> E[Oracle Layer\nGenLayer Intelligent Contract Python]
-   E --> F[Verification URL\nAPI Response Evidence]
-   E --> G[Optimistic Democracy\nBinary YES/NO Consensus]
-   G --> C
-   C --> H[Onchain Settlement\nrelease() or refund()]
-   H --> I[BscScan + GenLayer Explorer Proof]
+### Tech Stack
+
+| Layer | Technology | Role |
+|---|---|---|
+| Signing | viem + EIP-712 | Typed-data intent signing. |
+| Escrow | Solidity ^0.8.20 + Foundry | Contrato de settlement en BSC Testnet. |
+| Validation | GenLayer Python SDK | Validación SLA en Bradbury/StudioNet-compatible. |
+| Relayer | Node.js ESM | Puente entre resultado de validación y escrow. |
+| Frontend | React + Vite + Tailwind | Demo UI para jueces y operadores. |
+| Integrity | Circom + snarkjs + Groth16 | Prueba de integridad de intent (fundWithZK). |
+
+## Setup (run it locally)
+
+### Prerequisites
+
+- Node.js 18+
+- npm 9+
+- Python 3.10+
+- Foundry (`forge`, `cast`)
+- GenLayer CLI (para `init` / `up`)
+- Wallet con tBNB para BSC Testnet
+- Variables configuradas en `.env` (basado en `.env.example`)
+
+### 1) GenLayer (init, up, deploy Python validator)
+
+```bash
+# Initialize local GenLayer project context
+
+genlayer init
+
+genlayer up
+
+# Install Python requirements for validator
+python -m pip install -r genlayer/requirements.txt
+
+# Deploy validator contract (repo-native deploy script)
+GENLAYER_CONTRACT_FILE=SLAValidator.py node scripts/deploy-validator.mjs
 ```
 
-Layer mapping for judges:
-- Input Layer: Client condition + signed SLA intent
-- Oracle Layer: GenLayer Intelligent Contract evaluates API evidence
-- Execution Layer: Apolo Relayer maps decision to deterministic action
-- Settlement Layer: BSC smart contract releases/refunds funds onchain
+### 2) BNB Chain (build + deploy Escrow)
 
-## Why GenLayer
+```bash
+# Compile contracts
+forge build
 
-Traditional smart contracts are deterministic and do not natively interpret arbitrary Web2 API responses; teams usually need extra oracle and offchain coordination layers.
+# Deploy ApoloEscrow directly
+forge create contracts/ApoloEscrow.sol:ApoloEscrow \
+  --rpc-url $BSC_TESTNET_RPC \
+  --private-key $PRIVATE_KEY \
+  --constructor-args $SOLVER_ADDRESS
+```
 
-Apolo uses GenLayer Intelligent Contracts so the validation layer can evaluate real endpoint evidence and converge on a binary transfer decision (approve/reject) under Optimistic Democracy consensus and an explicit finality model.
+### 3) Relayer bridge (Node.js)
 
-This is the core primitive: move funds only after outcome verification, not after code merge.
+```bash
+# From repository root
+npm install
 
-## Software 3.0 Framing
+# Run relayer flow
+npm run relayer -- <SLA_INTENT_HASH> approved
+# or
+npm run relayer -- <SLA_INTENT_HASH> rejected
+```
 
-In line with Andrej Karpathy's Software 3.0 framing (agents + APIs), Apolo acts as the financial truth layer for agentic execution.
+### 4) Frontend (React/Vite)
 
-- Agent layer: autonomous agents call external APIs to complete tasks.
-- Truth layer (Apolo + GenLayer): validation converts API evidence into a binary settlement assertion (approve/reject).
-- Settlement layer (BSC): funds move only after that assertion is finalized.
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-Practical meaning: in an agent economy, API responses are not enough to trigger payment. Verified outcomes are.
+## Real onchain transparency
 
-## Demo
+### Deployed Contracts
 
-Try it live with any public endpoint:
-
-Condition: "https://httpbin.org/get returns HTTP 200"
-? Create escrow ? GenLayer verifies ? Funds released ?
-
-## Tech Stack
-
-- EIP-712 (viem) � SLA intent signing
-- EIP-7702 � programmable wallet execution (V2 roadmap)
-- Circom 2.2.3 + snarkjs � ZK circuit for intent verification
-- Groth16 proof system � onchain integrity guarantee
-- Solidity ^0.8.20 + Foundry � ApoloEscrow.sol on BSC Testnet
-- GenLayer Python SDK � SLAValidator.py on Bradbury
-- Node.js ESM � apolo-relayer.mjs bridge
-- React + Vite + Tailwind � demo frontend
-- BSC Testnet (Chain ID: 97)
-- GenLayer Bradbury testnet
-
-## Contract Addresses (BSC Testnet)
+#### BSC Testnet
 
 | Contract | Address |
 |---|---|
 | ApoloEscrow (ZK enabled) | 0x5191Bca416e2De8dD7915bdD55bf625143ABB98C |
 | Groth16Verifier | 0x5cBC63B27AF1427096C644DdC66B56cf01006A1e |
 
-## Contract Addresses (GenLayer Bradbury)
+#### GenLayer Bradbury
 
 | Contract | Address |
 |---|---|
 | SLAValidator.py | 0xc84ef0aEC4A8b4e5241231296C4a201cb56380C6 |
 
-## Key Transactions
+### Key Proofs
 
-ZKProofVerified (fundWithZK):
-https://testnet.bscscan.com/tx/0x1bce644f6ac296bbd5a75ffa0b783987d8648355bb4dd912d6cbe8970995ab3e
-
-Settlement confirmed (release):
-https://testnet.bscscan.com/tx/0x98f5ae6cc8ba95e139d5b5c4ce54822c7c4074f0ff75bacb7774d7645cfec453
+- ZK fund (`fundWithZK`):
+  https://testnet.bscscan.com/tx/0x1bce644f6ac296bbd5a75ffa0b783987d8648355bb4dd912d6cbe8970995ab3e
+- Settlement release:
+  https://testnet.bscscan.com/tx/0x98f5ae6cc8ba95e139d5b5c4ce54822c7c4074f0ff75bacb7774d7645cfec453
 
 ## Bradbury Bug Report
 
-During integration we documented 6 reproducible issues
-with GenLayer Bradbury gen_call reliability.
-Full report: docs/BRADBURY-BUG-REPORT.md
-Submitted as contribution to Bradbury Special Track.
+Durante la integración documentamos 6 issues reproducibles sobre `gen_call` en Bradbury.
+
+- Reporte completo: `docs/BRADBURY-BUG-REPORT.md`
+- Estado: enviado para Bradbury Special Track
 
 ## Demo Video
 
-[add after recording]
+- Estado: pendiente de adjuntar enlace final de entrega
 
 ## Tracks
 
