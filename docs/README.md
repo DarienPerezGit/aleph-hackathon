@@ -1,6 +1,6 @@
 <!-- markdownlint-disable MD013 MD034 MD060 -->
 
-# Apolo Protocol
+# Apolo: Automated API Bounties.
 
 **Automated SLA verification and instant payments for developers.**
 
