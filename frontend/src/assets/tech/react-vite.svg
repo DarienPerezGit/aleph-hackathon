@@ -1,0 +1,16 @@
+<svg viewBox="0 0 280 80" xmlns="http://www.w3.org/2000/svg" aria-label="React and Vite logo">
+  <g fill="none" stroke="#111" stroke-width="3">
+    <ellipse cx="36" cy="40" rx="28" ry="11"/>
+    <ellipse cx="36" cy="40" rx="28" ry="11" transform="rotate(60 36 40)"/>
+    <ellipse cx="36" cy="40" rx="28" ry="11" transform="rotate(120 36 40)"/>
+  </g>
+  <circle cx="36" cy="40" r="5" fill="#111"/>
+  <g fill="#111">
+    <path d="M110 18h16l8 14-8 14h-16l8-14z"/>
+    <path d="M132 18h16l-14 28h-16z" opacity=".85"/>
+    <path d="M122 48h16l8 14h-16z" opacity=".7"/>
+    <path d="M174 24h10l8 18 8-18h10l-14 32h-8z"/>
+    <path d="M220 24h10v40h-10z"/>
+    <path d="M240 24h10v32h18v8h-28z"/>
+  </g>
+</svg>

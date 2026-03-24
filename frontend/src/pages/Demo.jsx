@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 const TX_PROOF_URL = 'https://testnet.bscscan.com/tx/0x98f5ae6cc8ba95e139d5b5c4ce54822c7c4074f0ff75bacb7774d7645cfec453';
+const SOLVER_API_BASE_URL = import.meta.env.VITE_SOLVER_API_URL || 'http://localhost:3001';
 
 const CONDITION_OPTIONS = [
   'Returns HTTP 200',
@@ -9,6 +10,67 @@ const CONDITION_OPTIONS = [
   'Response contains "status: ok"',
   'Responds under 1000ms',
 ];
+
+const WALLET_OPTIONS = [
+  {
+    id: 'metamask',
+    name: 'MetaMask',
+    icon: 'https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/metamask.svg',
+    installUrl: 'https://metamask.io/download/',
+  },
+  {
+    id: 'walletconnect',
+    name: 'WalletConnect',
+    icon: 'https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/walletconnect.svg',
+    installUrl: 'https://walletconnect.com/wallets',
+  },
+  {
+    id: 'coinbase',
+    name: 'Coinbase Wallet',
+    icon: 'https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/coinbase.svg',
+    installUrl: 'https://www.coinbase.com/wallet/downloads',
+  },
+  {
+    id: 'rainbow',
+    name: 'Rainbow',
+    icon: 'https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/rainbow.svg',
+    installUrl: 'https://rainbow.me/',
+  },
+  {
+    id: 'brave',
+    name: 'Brave Wallet',
+    icon: 'https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/brave.svg',
+    installUrl: 'https://brave.com/wallet/',
+  },
+];
+
+function getInjectedProviders() {
+  if (typeof window === 'undefined' || !window.ethereum) return [];
+  const provider = window.ethereum;
+  if (Array.isArray(provider.providers) && provider.providers.length > 0) {
+    return provider.providers;
+  }
+  return [provider];
+}
+
+function findProviderByWalletId(walletId) {
+  const providers = getInjectedProviders();
+  if (providers.length === 0) return null;
+
+  if (walletId === 'metamask') {
+    return providers.find((provider) => provider?.isMetaMask && !provider?.isBraveWallet) || null;
+  }
+
+  if (walletId === 'brave') {
+    return providers.find((provider) => provider?.isBraveWallet) || null;
+  }
+
+  if (walletId === 'coinbase') {
+    return providers.find((provider) => provider?.isCoinbaseWallet) || null;
+  }
+
+  return null;
+}
 
 const SUGGESTIONS = [
   'API endpoint is returning 500',
@@ -37,6 +99,26 @@ const INITIAL_BOUNTIES = [
     status: 'Verifying',
     createdAt: Date.now() - 7 * 60 * 1000,
   },
+  {
+    id: 'preload-3',
+    intentHash: '0x5b6c96b87d1fd92abf5ccca5b2d2e9a02e5a1626348f7bcabf20f4893ce1f4a4',
+    title: 'Landing page not live',
+    url: 'https://your-app.vercel.app',
+    condition: 'Returns HTTP 200',
+    reward: '0.0003',
+    status: 'Open',
+    createdAt: Date.now() - 12 * 60 * 1000,
+  },
+  {
+    id: 'preload-4',
+    intentHash: '0x2fd46f59a61e129ac35e958db1f1d9e7f61f9a45da4d2a9a62c89e36ecedc8bb',
+    title: 'Webhook not responding',
+    url: 'https://api.stripe.com/webhook/test',
+    condition: 'Returns valid JSON',
+    reward: '0.00015',
+    status: 'Open',
+    createdAt: Date.now() - 15 * 60 * 1000,
+  },
 ];
 
 function truncateMiddle(value, left = 22, right = 14) {
@@ -57,6 +139,19 @@ function makeIntentHash() {
   const bytes = new Uint8Array(32);
   crypto.getRandomValues(bytes);
   return `0x${Array.from(bytes, (value) => value.toString(16).padStart(2, '0')).join('')}`;
+}
+
+function toWeiAmount(value) {
+  const normalized = String(value ?? '').trim();
+  if (!normalized || !/^\d+(\.\d+)?$/.test(normalized)) {
+    throw new Error('Invalid reward amount');
+  }
+
+  const [wholePart, decimalPart = ''] = normalized.split('.');
+  const whole = BigInt(wholePart || '0');
+  const decimals = (decimalPart + '0'.repeat(18)).slice(0, 18);
+  const fraction = BigInt(decimals || '0');
+  return (whole * 10n ** 18n + fraction).toString();
 }
 
 function statusBadge(status) {
@@ -92,6 +187,9 @@ function BountyCard({ bounty, showClaim, isBusy, onClaim }) {
         <p className="text-xs font-mono text-[#666]">
           Condition: <span className="text-[#999]">{bounty.condition}</span>
         </p>
+        <p className="text-[11px] font-mono text-[#999]">
+          Verified via public endpoint
+        </p>
         <p className="text-xs font-mono text-[#666]">
           Reward: <span className="text-[#111]">{bounty.reward} tBNB</span>
         </p>
@@ -105,9 +203,70 @@ function BountyCard({ bounty, showClaim, isBusy, onClaim }) {
             disabled={isBusy}
             className="text-xs font-mono border border-black/10 px-3 py-2 rounded-[10px] hover:border-[#111] hover:bg-[#111] hover:text-white text-[#555] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            {isBusy ? 'Verifying...' : 'Claim & Verify'}
+            {isBusy ? 'Verifying...' : 'View Details'}
           </button>
         )}
+      </div>
+    </div>
+  );
+}
+
+function WalletGatewayModal({ onClose, onSelect, onInstall }) {
+  const isWalletInstalled = (walletId) => {
+    if (walletId === 'walletconnect' || walletId === 'rainbow') return false;
+    return Boolean(findProviderByWalletId(walletId));
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center px-4"
+      style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)' }}
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-xl bg-white/90 backdrop-blur-[12px] border border-black/[0.08] rounded-[16px] p-5 sm:p-6"
+        style={{ boxShadow: '0 24px 64px rgba(0,0,0,0.22)' }}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="flex items-center justify-between gap-4 mb-5">
+          <div>
+            <h3 className="text-lg font-bold text-[#111]">Connect a wallet</h3>
+            <p className="text-xs font-mono text-[#999] mt-1">Choose your wallet provider</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-full border border-black/10 text-[#666] hover:text-[#111] hover:border-black/20 transition-colors"
+            aria-label="Close wallet modal"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {WALLET_OPTIONS.map((wallet) => (
+            <button
+              key={wallet.id}
+              onClick={() => {
+                if (isWalletInstalled(wallet.id)) {
+                  onSelect(wallet);
+                  return;
+                }
+                onInstall(wallet);
+              }}
+              className="flex items-center gap-3 text-left border border-black/10 rounded-[12px] px-3 py-3 hover:border-[#111] hover:bg-white transition-all"
+            >
+              <span className="w-8 h-8 rounded-[8px] bg-white border border-black/10 flex items-center justify-center overflow-hidden">
+                <img src={wallet.icon} alt={`${wallet.name} logo`} className="w-5 h-5" />
+              </span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-[#222]">{wallet.name}</p>
+                <p className="text-[11px] font-mono text-[#999] mt-0.5">
+                  {isWalletInstalled(wallet.id) ? 'Installed · Connect' : 'Not installed · Install'}
+                </p>
+              </div>
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -120,7 +279,11 @@ export default function Demo() {
   const [flowMessage, setFlowMessage] = useState('');
   const [showResult, setShowResult] = useState('');
   const [activityLog, setActivityLog] = useState([]);
+  const [selectedBountyId, setSelectedBountyId] = useState('');
   const [confirmation, setConfirmation] = useState('');
+  const [showWalletGateway, setShowWalletGateway] = useState(false);
+  const [connectedWallet, setConnectedWallet] = useState('');
+  const [proofUrl, setProofUrl] = useState(TX_PROOF_URL);
 
   const [title, setTitle] = useState('');
   const [url, setUrl] = useState('');
@@ -131,6 +294,10 @@ export default function Demo() {
     () => bounties.filter((entry) => entry.status === 'Open'),
     [bounties],
   );
+  const selectedBounty = useMemo(
+    () => bounties.find((entry) => entry.id === selectedBountyId) || null,
+    [bounties, selectedBountyId],
+  );
 
   function appendLog(line) {
     const stamp = new Date().toLocaleTimeString('en-US', { hour12: false });
@@ -140,6 +307,10 @@ export default function Demo() {
   function resetFlowFeedback() {
     setFlowMessage('');
     setShowResult('');
+  }
+
+  function handleOpenDetails(bountyId) {
+    setSelectedBountyId(bountyId);
   }
 
   function handleSuggestionClick(value) {
@@ -178,6 +349,46 @@ export default function Demo() {
     setTimeout(() => setConfirmation(''), 2500);
   }
 
+  async function handleWalletSelect(wallet) {
+    const provider = findProviderByWalletId(wallet.id);
+    if (!provider) {
+      handleWalletInstall(wallet);
+      return;
+    }
+
+    try {
+      if (wallet.id === 'metamask') {
+        try {
+          await provider.request({
+            method: 'wallet_requestPermissions',
+            params: [{ eth_accounts: {} }],
+          });
+        } catch {
+          // ignore and continue with eth_requestAccounts fallback
+        }
+      }
+
+      const accounts = await provider.request({ method: 'eth_requestAccounts' });
+      if (!accounts || accounts.length === 0) {
+        throw new Error('No accounts returned');
+      }
+
+      setConnectedWallet(wallet.name);
+      setShowWalletGateway(false);
+      setConfirmation(`Wallet connected → ${wallet.name}`);
+      setTimeout(() => setConfirmation(''), 2500);
+    } catch (error) {
+      setConfirmation(`Connection rejected → ${wallet.name}`);
+      setTimeout(() => setConfirmation(''), 2500);
+    }
+  }
+
+  function handleWalletInstall(wallet) {
+    window.open(wallet.installUrl, '_blank', 'noopener,noreferrer');
+    setConfirmation(`Install ${wallet.name} to continue`);
+    setTimeout(() => setConfirmation(''), 2500);
+  }
+
   async function handleClaimAndVerify(bountyId) {
     if (isVerifying) return;
 
@@ -190,43 +401,115 @@ export default function Demo() {
       ),
     );
 
-    const selected = bounties.find((entry) => entry.id === bountyId);
-    const targetUrl = selected?.url ?? '';
+    try {
+      const selected = bounties.find((entry) => entry.id === bountyId);
+      if (!selected) {
+        throw new Error('Bounty not found');
+      }
 
-    setFlowMessage('Checking endpoint...');
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+      setFlowMessage('Funding escrow on BSC Testnet...');
+      appendLog(`Submitting intent: ${selected.intentHash}`);
 
-    setFlowMessage('Validators reaching consensus...');
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+      const intentPayload = {
+        intentHash: selected.intentHash,
+        intent: {
+          amountWei: toWeiAmount(selected.reward),
+          condition: selected.condition,
+          evidenceUrl: selected.url,
+        },
+      };
 
-    const success = targetUrl.includes('httpbin.org/get');
+      const fundResponse = await fetch(`${SOLVER_API_BASE_URL}/intent`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(intentPayload),
+      });
 
-    appendLog(`Endpoint checked: ${targetUrl}`);
-    appendLog(`Validators consensus: ${success}`);
+      if (!fundResponse.ok) {
+        const errorPayload = await fundResponse.json().catch(() => ({}));
+        throw new Error(errorPayload.error || 'Failed to fund intent');
+      }
 
-    if (success) {
-      setFlowMessage('Condition met ✓ — Payment released');
-      setShowResult('success');
-      appendLog('Payment released');
-    } else {
-      setFlowMessage('Condition not met — Refund issued');
+      const fundData = await fundResponse.json();
+      if (fundData?.bscScanUrl) {
+        setProofUrl(fundData.bscScanUrl);
+      }
+      appendLog(`Escrow funded: ${fundData.txHash}`);
+      setFlowMessage('Validators reaching consensus on GenLayer...');
+
+      let finalStatus = 'VALIDATING';
+      let lastStatusData = null;
+
+      for (let attempt = 1; attempt <= 45; attempt += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+        const statusResponse = await fetch(`${SOLVER_API_BASE_URL}/intent/${selected.intentHash}/status`);
+        if (!statusResponse.ok) {
+          continue;
+        }
+
+        const statusData = await statusResponse.json();
+        lastStatusData = statusData;
+        finalStatus = String(statusData.status || '').toUpperCase();
+
+        if (statusData?.links?.genlayerValidation) {
+          appendLog(`GenLayer validation: ${statusData.links.genlayerValidation}`);
+        }
+        if (statusData?.links?.settlement) {
+          setProofUrl(statusData.links.settlement);
+        }
+
+        if (['RELEASED', 'REFUNDED', 'ERROR'].includes(finalStatus)) {
+          break;
+        }
+      }
+
+      if (finalStatus === 'RELEASED') {
+        setFlowMessage('Condition met ✓ — Payment released');
+        setShowResult('success');
+        appendLog('Payment released (onchain)');
+      } else if (finalStatus === 'REFUNDED') {
+        setFlowMessage('Condition not met — Refund issued');
+        setShowResult('fail');
+        appendLog('Refund issued (onchain)');
+      } else if (finalStatus === 'ERROR') {
+        throw new Error(lastStatusData?.error || 'Settlement failed');
+      } else {
+        throw new Error('Validation timeout waiting final state');
+      }
+
+      setBounties((previous) =>
+        previous.map((entry) =>
+          entry.id === bountyId
+            ? { ...entry, status: finalStatus === 'RELEASED' ? 'Paid' : 'Refunded' }
+            : entry,
+        ),
+      );
+    } catch (error) {
+      setFlowMessage(`Verification failed — ${error.message}`);
       setShowResult('fail');
-      appendLog('Refund issued');
+      appendLog(`Error: ${error.message}`);
+      setBounties((previous) =>
+        previous.map((entry) =>
+          entry.id === bountyId
+            ? { ...entry, status: 'Open' }
+            : entry,
+        ),
+      );
+    } finally {
+      setIsVerifying(false);
     }
-
-    setBounties((previous) =>
-      previous.map((entry) =>
-        entry.id === bountyId
-          ? { ...entry, status: success ? 'Paid' : 'Refunded' }
-          : entry,
-      ),
-    );
-
-    setIsVerifying(false);
   }
 
   return (
     <div className="min-h-screen bg-[#FAFAFB] text-[#111] antialiased noise-bg">
+      {showWalletGateway && (
+        <WalletGatewayModal
+          onClose={() => setShowWalletGateway(false)}
+          onSelect={handleWalletSelect}
+          onInstall={handleWalletInstall}
+        />
+      )}
+
       <nav className="px-6 md:px-8 py-6 flex items-center justify-between border-b border-black/[0.06]">
         <div className="flex items-center gap-5">
           <Link to="/" className="text-sm font-bold tracking-[0.25em] uppercase text-[#111] hover:text-[#444] transition-colors">
@@ -236,7 +519,7 @@ export default function Demo() {
           <span className="text-xs font-mono text-[#999]">Marketplace demo</span>
         </div>
         <a
-          href={TX_PROOF_URL}
+          href={proofUrl}
           target="_blank"
           rel="noreferrer"
           className="text-xs font-mono border border-black/10 px-3 py-2 rounded-[10px] hover:border-[#111] hover:bg-[#111] hover:text-white transition-all"
@@ -274,8 +557,13 @@ export default function Demo() {
             <section className="space-y-6 animate-in fade-in duration-300">
               <header>
                 <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#111] mb-2">
-                  Post a bounty. Pay only when it&apos;s fixed.
+                  Post a condition. Pay only when it&apos;s true.
                 </h1>
+                {connectedWallet && (
+                  <p className="text-xs font-mono text-[#999]">
+                    Connected wallet: <span className="text-[#333]">{connectedWallet}</span>
+                  </p>
+                )}
               </header>
 
               <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_1fr] gap-6">
@@ -348,6 +636,14 @@ export default function Demo() {
                     Post Bounty
                   </button>
 
+                  <button
+                    type="button"
+                    onClick={() => setShowWalletGateway(true)}
+                    className="w-full text-sm font-mono border border-black/10 py-3 rounded-[10px] hover:border-[#111] hover:bg-[#111] hover:text-white text-[#555] transition-all"
+                  >
+                    Add Wallet
+                  </button>
+
                   {confirmation && (
                     <p className="text-xs font-mono text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-[10px] px-3 py-2 animate-in fade-in duration-200">
                       {confirmation}
@@ -387,7 +683,7 @@ export default function Demo() {
 
               {showResult && (
                 <a
-                  href={TX_PROOF_URL}
+                  href={proofUrl}
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex text-xs font-mono text-[#999] hover:text-[#444] transition-colors"
@@ -410,13 +706,46 @@ export default function Demo() {
                         bounty={bounty}
                         showClaim
                         isBusy={isVerifying}
-                        onClaim={handleClaimAndVerify}
+                        onClaim={handleOpenDetails}
                       />
                     ))
                   )}
                 </div>
 
                 <div className="space-y-3">
+                  <h2 className="text-sm font-mono text-[#999] uppercase tracking-widest">Bounty details</h2>
+                  <div
+                    className="bg-white/70 backdrop-blur-[12px] border border-black/[0.07] rounded-[14px] p-4"
+                    style={{ boxShadow: '0 10px 30px rgba(0,0,0,0.05)' }}
+                  >
+                    {!selectedBounty ? (
+                      <p className="text-xs font-mono text-[#bbb]">Select a bounty with &quot;View Details&quot; first.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        <p className="text-sm font-semibold text-[#111]">{selectedBounty.title}</p>
+                        <p className="text-xs font-mono text-[#666]">URL: <span className="text-[#999] break-all">{selectedBounty.url}</span></p>
+                        <p className="text-xs font-mono text-[#666]">Condition: <span className="text-[#999]">{selectedBounty.condition}</span></p>
+                        <p className="text-xs font-mono text-[#666]">Reward: <span className="text-[#111]">{selectedBounty.reward} tBNB</span></p>
+                        <p className="text-xs font-mono text-[#666]">Intent: <span className="text-[#999] break-all">{selectedBounty.intentHash}</span></p>
+                        <p className="text-xs font-mono text-[#666]">Status: <span className="text-[#999]">{selectedBounty.status}</span></p>
+
+                        <div className="pt-2">
+                          <button
+                            onClick={() => handleClaimAndVerify(selectedBounty.id)}
+                            disabled={isVerifying || selectedBounty.status !== 'Open'}
+                            className="text-xs font-mono border border-black/10 px-3 py-2 rounded-[10px] hover:border-[#111] hover:bg-[#111] hover:text-white text-[#555] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            {isVerifying
+                              ? 'Verifying...'
+                              : selectedBounty.status === 'Open'
+                                ? 'Claim & Verify'
+                                : `Already ${selectedBounty.status}`}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                   <h2 className="text-sm font-mono text-[#999] uppercase tracking-widest">Activity log</h2>
                   <div
                     className="bg-white/70 backdrop-blur-[12px] border border-black/[0.07] rounded-[14px] p-4 min-h-[240px]"

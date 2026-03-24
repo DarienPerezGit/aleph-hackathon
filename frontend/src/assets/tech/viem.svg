@@ -1,0 +1,8 @@
+<svg viewBox="0 0 220 80" xmlns="http://www.w3.org/2000/svg" aria-label="Viem logo">
+  <g fill="#111">
+    <path d="M12 24h10l12 28 12-28h10L34 64H24z"/>
+    <rect x="70" y="24" width="9" height="40" rx="2"/>
+    <path d="M90 24h10l10 14 10-14h10v40h-9V38l-11 14-11-14v26h-9z"/>
+    <path d="M149 24h10v16h20V24h10v40h-10V48h-20v16h-10z"/>
+  </g>
+</svg>

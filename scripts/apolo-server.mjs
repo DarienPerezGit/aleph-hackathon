@@ -40,6 +40,17 @@ function normalizeTxHash(txHash) {
   return /^0x[a-fA-F0-9]{64}$/.test(normalized) ? normalized : '';
 }
 
+function parseManualValidationResult(value) {
+  if (typeof value !== 'string') return null;
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return null;
+  if (['true', 'yes', 'approved', 'approve', 'release', '1'].includes(normalized)) return true;
+  if (['false', 'no', 'rejected', 'reject', 'refund', '0'].includes(normalized)) return false;
+  throw new Error(
+    `Invalid MANUAL_VALIDATION_RESULT: ${value}. Use one of: approved|rejected|true|false|release|refund`
+  );
+}
+
 function mapOnchainStatus(stateCode) {
   return intentStateLabels[stateCode] || 'UNKNOWN';
 }
@@ -135,9 +146,7 @@ app.post('/intent', async (req, res) => {
         // manualResult: read from env at call time (not module-load time)
         // so restart is not required when .env changes
         const envManual = process.env.MANUAL_VALIDATION_RESULT ?? '';
-        const manualResult = envManual
-          ? ((['true','yes','approved','approve','release','1'].includes(envManual.trim().toLowerCase())) ? true : false)
-          : true; // demo default: skip LLM, go straight to anchoring
+        const manualResult = parseManualValidationResult(envManual);
 
         const settlement = await settleIntent(normalizedIntentHash, {
           condition: deliveryCondition,

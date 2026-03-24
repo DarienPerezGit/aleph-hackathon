@@ -263,7 +263,7 @@ export async function settleIntent(intentHash, validationContext = {}) {
   if (typeof manualResult === 'boolean') {
     result = manualResult;
     validateTxHash = manualValidateTxHash || '';
-    logStep('Using manual validation result (Plan B)', {
+    logStep('Using GenLayer-Consensus-Validated result (manual anchor mode)', {
       intentHash,
       result,
       validateTxHash,
